@@ -99,7 +99,7 @@ async def summarize_questions():
 
     try:        
         response = groq_client.chat.completions.create(
-            model="llama3-70b-8192",
+            model="llama-3.1-8b-instant",
             messages=[
                 {"role": "system", "content": SYSTEM_PROMPT},
                 {"role": "user", "content": f"Summarize these student questions:\n\n{question_text}"}
