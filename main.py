@@ -2,6 +2,7 @@ import os
 import asyncio
 from fastapi import FastAPI, WebSocket, WebSocketDisconnect
 from fastapi.middleware.cors import CORSMiddleware
+from fastapi.responses import FileResponse
 from fastapi.staticfiles import StaticFiles
 from pydantic import BaseModel
 from dotenv import load_dotenv
@@ -38,18 +39,13 @@ class Question(BaseModel):
     text: str
     user: str
 
-# ========== Endpoints ==========
-@app.get("/")
-async def root():
-    """Root endpoint - health check for Render"""
-    return {"status": "ok", "message": "CS356 Q&A API is running", "connected_clients": len(clients)}
-
+# ========== API Endpoints ==========
 @app.get("/health")
 async def health():
     """Health check endpoint"""
     return {"status": "ok", "connected_clients": len(clients)}
 
-@app.post("/ask")
+@app.post("/api/ask")
 async def ask_question(q: Question):
     print(f"New question from {q.user}: {q.text}")
     questions.append(q.dict())
@@ -58,7 +54,8 @@ async def ask_question(q: Question):
     for client in clients:
         try:
             await client.send_json({"event": "new_question", "data": q.dict()})
-        except Exception:
+        except Exception as e:
+            print(f"Error sending to client: {e}")
             disconnected.append(client)
     
     for client in disconnected:
@@ -104,7 +101,7 @@ async def summarize_questions():
         response = groq_client.chat.completions.create(
             model="llama3-70b-8192",
             messages=[
-                {"role": "system", "content": SYSTEM_PROMPT},  # CS356 context here
+                {"role": "system", "content": SYSTEM_PROMPT},
                 {"role": "user", "content": f"Summarize these student questions:\n\n{question_text}"}
             ],
             max_tokens=600,
@@ -112,11 +109,11 @@ async def summarize_questions():
         )
         
         summary = response.choices[0].message.content
-        print(f"✅ Summary generated")
+        print(f"Summary generated")
         return summary
         
     except Exception as e:
-        print(f"❌ Groq error: {e}")
+        print(f"Groq error: {e}")
         return None
 
 @app.on_event("startup")
@@ -130,7 +127,6 @@ async def start_summarizer():
         while True:
             await asyncio.sleep(30)
             
-            # Only summarize if there are NEW questions since last summary
             if len(questions) > last_summarized_count and len(questions) >= 3:
                 summary = await summarize_questions()
                 if summary:
@@ -145,11 +141,29 @@ async def start_summarizer():
                         if client in clients:
                             clients.remove(client)
                     
-                    # Update the count so we don't re-summarize the same questions
                     last_summarized_count = len(questions)
                     print(f"Summary sent. Tracking {last_summarized_count} questions.")
     
     asyncio.create_task(loop())
 
-# Mount static files
-app.mount("/", StaticFiles(directory="static", html=True), name="static")
+# ========== Static HTML Pages ==========
+@app.get("/")
+async def serve_root():
+    """Serve student page at root"""
+    return FileResponse("static/index.html")
+
+@app.get("/student.html")
+async def serve_student():
+    """Serve student page"""
+    return FileResponse("static/index.html")
+
+@app.get("/professor.html")
+async def serve_professor():
+    """Serve professor dashboard"""
+    return FileResponse("static/professor.html")
+
+# ========== Run Server ==========
+if __name__ == "__main__":
+    import uvicorn
+    port = int(os.getenv("PORT", 8000))
+    uvicorn.run(app, host="0.0.0.0", port=port)
