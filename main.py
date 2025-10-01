@@ -34,49 +34,51 @@ else:
 questions = []
 clients: list[WebSocket] = []
 
-
 class Question(BaseModel):
     text: str
     user: str
 
-
 # ========== Endpoints ==========
 @app.get("/")
 async def root():
-    return {"status": "ok", "connected_clients": len(clients)}
+    """Root endpoint - health check for Render"""
+    return {"status": "ok", "message": "CS356 Q&A API is running", "connected_clients": len(clients)}
 
+@app.get("/health")
+async def health():
+    """Health check endpoint"""
+    return {"status": "ok", "connected_clients": len(clients)}
 
 @app.post("/ask")
 async def ask_question(q: Question):
     print(f"New question from {q.user}: {q.text}")
     questions.append(q.dict())
-
+    
     disconnected = []
     for client in clients:
         try:
             await client.send_json({"event": "new_question", "data": q.dict()})
         except Exception:
             disconnected.append(client)
-
+    
     for client in disconnected:
         if client in clients:
             clients.remove(client)
-
-    print(f"Total: {len(questions)} questions, {len(clients)} clients")
+    
+    print(f"📊 Total: {len(questions)} questions, {len(clients)} clients")
     return {"status": "received"}
-
 
 @app.websocket("/ws")
 async def websocket_endpoint(ws: WebSocket):
     await ws.accept()
     clients.append(ws)
     print(f"🔌 Client connected. Total: {len(clients)}")
-
+    
     try:
         # Send existing questions
         for q in questions:
             await ws.send_json({"event": "new_question", "data": q})
-
+        
         while True:
             await asyncio.sleep(1)
     except WebSocketDisconnect:
@@ -87,7 +89,6 @@ async def websocket_endpoint(ws: WebSocket):
         if ws in clients:
             clients.remove(ws)
 
-
 # ========== Summarization ==========
 async def summarize_questions():
     """Summarize questions with CS356 context"""
@@ -96,13 +97,14 @@ async def summarize_questions():
 
     # Build question list
     question_text = ""
-    # Change -5 to any number depending on how many questions to view at once
-    for q in questions[-5:]:
+    for q in questions[-15:]:
         question_text += f"- [{q['user']}] {q['text']}\n"
 
     try:
+        print(f"🤖 Generating summary for {len(questions[-15:])} questions...")
+        
         response = groq_client.chat.completions.create(
-            model= "llama-3.1-8b-instant",
+            model="llama3-70b-8192",
             messages=[
                 {"role": "system", "content": SYSTEM_PROMPT},  # CS356 context here
                 {"role": "user", "content": f"Summarize these student questions:\n\n{question_text}"}
@@ -110,27 +112,26 @@ async def summarize_questions():
             max_tokens=600,
             temperature=0.3
         )
-
+        
         summary = response.choices[0].message.content
         print(f"✅ Summary generated")
         return summary
-
+        
     except Exception as e:
         print(f"❌ Groq error: {e}")
         return None
-
 
 @app.on_event("startup")
 async def start_summarizer():
     """Background summarization loop"""
     last_summarized_count = 0
-
+    
     async def loop():
         nonlocal last_summarized_count
-        print("Summarizer started (30s intervals)")
+        print("🚀 Summarizer started (30s intervals)")
         while True:
             await asyncio.sleep(30)
-
+            
             # Only summarize if there are NEW questions since last summary
             if len(questions) > last_summarized_count and len(questions) >= 3:
                 summary = await summarize_questions()
@@ -141,17 +142,16 @@ async def start_summarizer():
                             await client.send_json({"event": "summary", "data": summary})
                         except Exception:
                             disconnected.append(client)
-
+                    
                     for client in disconnected:
                         if client in clients:
                             clients.remove(client)
-
+                    
                     # Update the count so we don't re-summarize the same questions
                     last_summarized_count = len(questions)
                     print(f"Summary sent. Tracking {last_summarized_count} questions.")
-
+    
     asyncio.create_task(loop())
-
 
 # Mount static files
 app.mount("/", StaticFiles(directory="static", html=True), name="static")
