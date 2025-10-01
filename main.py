@@ -97,12 +97,10 @@ async def summarize_questions():
 
     # Build question list
     question_text = ""
-    for q in questions[-15:]:
+    for q in questions[-5:]:
         question_text += f"- [{q['user']}] {q['text']}\n"
 
-    try:
-        print(f"🤖 Generating summary for {len(questions[-15:])} questions...")
-        
+    try:        
         response = groq_client.chat.completions.create(
             model="llama3-70b-8192",
             messages=[
