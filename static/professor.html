@@ -1,0 +1,161 @@
+<!DOCTYPE html>
+<html>
+<head>
+  <meta charset="utf-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1.0">
+  <title>Professor Dashboard</title>
+  <!-- Marked.js for markdown rendering -->
+  <script src="https://cdnjs.cloudflare.com/ajax/libs/marked/11.1.1/marked.min.js"></script>
+  <style>
+    body {
+      font-family: Arial, sans-serif;
+      max-width: 900px;
+      margin: 20px auto;
+      padding: 20px;
+    }
+    h1 {
+      color: #333;
+    }
+    .box {
+      border: 1px solid #ccc;
+      padding: 15px;
+      height: 250px;
+      overflow: auto;
+      background-color: #f9f9f9;
+      margin-bottom: 20px;
+    }
+    .question-item {
+      padding: 10px;
+      margin: 5px 0;
+      background-color: white;
+      border-left: 3px solid #4CAF50;
+    }
+    .summary-item {
+      padding: 10px;
+      margin: 5px 0;
+      background-color: #fff3cd;
+      border-left: 3px solid #ffc107;
+    }
+    .summary-item strong {
+      color: #333;
+      font-size: 1.05em;
+    }
+    .summary-item ul {
+      margin: 5px 0;
+      padding-left: 20px;
+    }
+    .urgent {
+      color: #d32f2f;
+      font-weight: bold;
+      background-color: #ffebee;
+      padding: 2px 6px;
+      border-radius: 3px;
+    }
+    #connectionStatus {
+      padding: 10px;
+      margin-bottom: 10px;
+      border-radius: 5px;
+      font-weight: bold;
+    }
+    .connected {
+      background-color: #d4edda;
+      color: #155724;
+    }
+    .disconnected {
+      background-color: #f8d7da;
+      color: #721c24;
+    }
+  </style>
+</head>
+<body>
+  <h1>📊 Live Classroom Q&A</h1>
+
+  <div id="connectionStatus" class="disconnected">🔴 Connecting to server...</div>
+
+  <h2>Incoming Questions (<span id="questionCount">0</span>)</h2>
+  <div id="questions" class="box">
+    <p style="color: #999;">Waiting for questions...</p>
+  </div>
+
+  <h2>AI Summaries</h2>
+  <div id="summaries" class="box">
+    <p style="color: #999;">AI summaries will appear here...</p>
+  </div>
+
+  <script>
+    let questionCount = 0;
+    const protocol = window.location.protocol === 'https:' ? 'wss:' : 'ws:';
+    const wsUrl = `${protocol}//${location.host}/ws`;
+
+    console.log("Connecting to WebSocket:", wsUrl);
+
+    const ws = new WebSocket(wsUrl);
+
+    ws.onopen = () => {
+      console.log("✅ Connected to backend");
+      const statusEl = document.getElementById("connectionStatus");
+      statusEl.innerText = "🟢 Connected to server";
+      statusEl.className = "connected";
+    };
+
+    ws.onclose = () => {
+      console.log("❌ Disconnected from backend");
+      const statusEl = document.getElementById("connectionStatus");
+      statusEl.innerText = "🔴 Disconnected from server";
+      statusEl.className = "disconnected";
+    };
+
+    ws.onerror = (error) => {
+      console.error("WebSocket error:", error);
+    };
+
+    ws.onmessage = (event) => {
+      console.log("Received message:", event.data);
+
+      try {
+        const msg = JSON.parse(event.data);
+        console.log("Parsed message:", msg);
+
+        if (msg.event === "new_question") {
+          questionCount++;
+          document.getElementById("questionCount").innerText = questionCount;
+
+          const qDiv = document.getElementById("questions");
+          if (questionCount === 1) {
+            qDiv.innerHTML = "";
+          }
+
+          const questionItem = document.createElement("div");
+          questionItem.className = "question-item";
+          questionItem.innerHTML = `<b>${msg.data.user}:</b> ${msg.data.text}`;
+          qDiv.appendChild(questionItem);
+
+          qDiv.scrollTop = qDiv.scrollHeight;
+        }
+
+        if (msg.event === "summary") {
+          const sDiv = document.getElementById("summaries");
+          if (sDiv.querySelector('p[style*="color: #999"]')) {
+            sDiv.innerHTML = "";
+          }
+
+          const time = new Date().toLocaleTimeString();
+          const summaryItem = document.createElement("div");
+          summaryItem.className = "summary-item";
+
+          // Parse markdown and highlight URGENT
+          let markdownContent = msg.data.replace(/\[URGENT\]/gi, '<span class="urgent">[URGENT]</span>');
+          let htmlContent = marked.parse(markdownContent);
+
+          summaryItem.innerHTML = `<b>[${time}]</b>${htmlContent}`;
+          sDiv.appendChild(summaryItem);
+
+          sDiv.scrollTop = sDiv.scrollHeight;
+        }
+      } catch (error) {
+        console.error("Error parsing message:", error);
+      }
+    };
+  </script>
+</body>
+</html>

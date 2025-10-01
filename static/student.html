@@ -1,0 +1,91 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+  <meta charset="UTF-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1.0">
+  <title>Student Q&A</title>
+  <style>
+    body {
+      font-family: Arial, sans-serif;
+      max-width: 600px;
+      margin: 50px auto;
+      padding: 20px;
+    }
+    input, textarea {
+      width: 100%;
+      padding: 10px;
+      margin: 5px 0;
+      box-sizing: border-box;
+    }
+    textarea {
+      height: 100px;
+      resize: vertical;
+    }
+    button {
+      background-color: #4CAF50;
+      color: white;
+      padding: 10px 20px;
+      border: none;
+      cursor: pointer;
+      font-size: 16px;
+    }
+    button:hover {
+      background-color: #45a049;
+    }
+    #status {
+      margin-top: 10px;
+      font-weight: bold;
+    }
+  </style>
+</head>
+<body>
+  <h1>Ask a Question</h1>
+  <form id="questionForm">
+    <input type="text" id="user" placeholder="Your name" required><br>
+    <textarea id="text" placeholder="Type your question..." required></textarea><br>
+    <button type="submit">Submit Question</button>
+  </form>
+
+  <p id="status"></p>
+
+  <script>
+    document.getElementById("questionForm").addEventListener("submit", async (e) => {
+      e.preventDefault();
+
+      const user = document.getElementById("user").value;
+      const text = document.getElementById("text").value;
+      const statusEl = document.getElementById("status");
+
+      statusEl.innerText = "Sending...";
+      statusEl.style.color = "blue";
+
+      console.log("Submitting question:", { user, text });
+
+      try {
+        const res = await fetch("/ask", {
+          method: "POST",
+          headers: { "Content-Type": "application/json" },
+          body: JSON.stringify({ user, text })
+        });
+
+        console.log("Response status:", res.status);
+        const data = await res.json();
+        console.log("Response data:", data);
+
+        if (res.ok) {
+          statusEl.innerText = "✅ Question submitted!";
+          statusEl.style.color = "green";
+          document.getElementById("text").value = "";
+        } else {
+          statusEl.innerText = "❌ Failed to submit: " + (data.detail || "Unknown error");
+          statusEl.style.color = "red";
+        }
+      } catch (error) {
+        console.error("Error submitting question:", error);
+        statusEl.innerText = "❌ Network error: " + error.message;
+        statusEl.style.color = "red";
+      }
+    });
+  </script>
+</body>
+</html>
