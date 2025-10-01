@@ -45,24 +45,24 @@
     <textarea id="text" placeholder="Type your question..." required></textarea><br>
     <button type="submit">Submit Question</button>
   </form>
-
+  
   <p id="status"></p>
 
   <script>
     document.getElementById("questionForm").addEventListener("submit", async (e) => {
       e.preventDefault();
-
+      
       const user = document.getElementById("user").value;
       const text = document.getElementById("text").value;
       const statusEl = document.getElementById("status");
-
+      
       statusEl.innerText = "Sending...";
       statusEl.style.color = "blue";
-
+      
       console.log("Submitting question:", { user, text });
 
       try {
-        const res = await fetch("/ask", {
+        const res = await fetch("/api/ask", {
           method: "POST",
           headers: { "Content-Type": "application/json" },
           body: JSON.stringify({ user, text })
