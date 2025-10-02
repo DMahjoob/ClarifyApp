@@ -8,7 +8,7 @@ from pydantic import BaseModel
 from dotenv import load_dotenv
 from groq import Groq
 
-# Import CS356 context
+# Import CS356 context, can replace with any class context
 from cs356_context import SYSTEM_PROMPT
 
 # ========== Setup ==========
@@ -40,16 +40,18 @@ class Question(BaseModel):
     user: str
 
 # ========== API Endpoints ==========
+# Render needs to check that the connection is valid
 @app.get("/health")
 async def health():
     """Health check endpoint"""
     return {"status": "ok", "connected_clients": len(clients)}
 
+# Asking questions 
 @app.post("/api/ask")
 async def ask_question(q: Question):
     print(f"New question from {q.user}: {q.text}")
     questions.append(q.dict())
-    
+    # add new question to list
     disconnected = []
     for client in clients:
         try:
@@ -57,7 +59,7 @@ async def ask_question(q: Question):
         except Exception as e:
             print(f"Error sending to client: {e}")
             disconnected.append(client)
-    
+    # handling user connectinos
     for client in disconnected:
         if client in clients:
             clients.remove(client)
@@ -65,6 +67,7 @@ async def ask_question(q: Question):
     print(f"📊 Total: {len(questions)} questions, {len(clients)} clients")
     return {"status": "received"}
 
+# Websockets for real time data transfer to professor.html
 @app.websocket("/ws")
 async def websocket_endpoint(ws: WebSocket):
     await ws.accept()
@@ -88,7 +91,7 @@ async def websocket_endpoint(ws: WebSocket):
 
 # ========== Summarization ==========
 async def summarize_questions():
-    """Summarize questions with CS356 context"""
+    """Summarize questions with the imported context"""
     if not groq_client or not questions:
         return None
 
@@ -99,9 +102,9 @@ async def summarize_questions():
 
     try:        
         response = groq_client.chat.completions.create(
-            model="llama-3.1-8b-instant",
+            model="llama-3.1-8b-instant", # can be replaced with any model, llama instant is fast
             messages=[
-                {"role": "system", "content": SYSTEM_PROMPT},
+                {"role": "system", "content": SYSTEM_PROMPT}, # imported from the context file
                 {"role": "user", "content": f"Summarize these student questions:\n\n{question_text}"}
             ],
             max_tokens=600,
@@ -126,7 +129,9 @@ async def start_summarizer():
         print("🚀 Summarizer started (30s intervals)")
         while True:
             await asyncio.sleep(30)
-            
+
+            # Check if there have been more than 3 questinons and also if the number of current 
+            # questions is less than we summarized
             if len(questions) > last_summarized_count and len(questions) >= 3:
                 summary = await summarize_questions()
                 if summary:
