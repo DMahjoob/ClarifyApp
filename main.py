@@ -8,8 +8,8 @@ from pydantic import BaseModel
 from dotenv import load_dotenv
 from groq import Groq
 
-# Import CS356 context, can replace with any class context
-from cs356_context import SYSTEM_PROMPT
+# Import context, can replace with any class context
+from tac359_context import SYSTEM_PROMPT
 
 # ========== Setup ==========
 app = FastAPI()
