@@ -9,7 +9,7 @@ from dotenv import load_dotenv
 from groq import Groq
 
 # Import context, can replace with any class context
-from tac359_context import SYSTEM_PROMPT
+from cs356_context import SYSTEM_PROMPT
 
 # ========== Setup ==========
 app = FastAPI()
