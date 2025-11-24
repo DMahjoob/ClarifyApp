@@ -1,0 +1,286 @@
+{
+  "deck_name": "CS356_Unit08_BufferOverflows",
+  "slide_number": 1,
+  "chunk_index": 0,
+  "title": "Unit 8: Buffer Overflows and Data Layout",
+  "summary": "This unit introduces buffer overflows as a security vulnerability and establishes the foundation by reviewing the data layout of structs, unions, and arrays in memory.",
+  "main_text": "Unit 8: Buffer Overflows. With Data Layout of Structs, Unions, Arrays",
+  "notes_text": "The unit progresses from understanding how data is stored in memory to exploiting memory layout weaknesses to carry out a buffer overflow attack.",
+  "keywords": [
+    "Buffer Overflows",
+    "Data Layout",
+    "Structs",
+    "Unions",
+    "Arrays",
+    "Security Vulnerability",
+    "Unit 8"
+  ],
+  "images": [],
+  "layout": {
+    "num_text_boxes": 1,
+    "num_images": 1,
+    "dominant_visual_type": "text-heavy"
+  },
+  "metadata": {
+    "course": "CS356",
+    "unit": 8,
+    "topic": "Buffer Overflow Introduction",
+    "importance_score": 7,
+    "file_hash": "sha256 placeholder"
+  }
+}
+{
+  "deck_name": "CS356_Unit08_BufferOverflows",
+  "slide_number": 2,
+  "chunk_index": 0,
+  "title": "Structs & Unions Overview",
+  "summary": "A transitional slide highlighting the two primary heterogeneous data structures, structs and unions, whose memory layout rules are essential prerequisites for understanding buffer overflows.",
+  "main_text": "Structs & Unions",
+  "notes_text": "Understanding the compiler's padding and alignment decisions for these data types is crucial for calculating accurate memory offsets.",
+  "keywords": [
+    "Structs",
+    "Unions",
+    "Data Structures",
+    "Memory Layout",
+    "Heterogeneous Data"
+  ],
+  "images": [],
+  "layout": {
+    "num_text_boxes": 1,
+    "num_images": 0,
+    "dominant_visual_type": "text-heavy"
+  },
+  "metadata": {
+    "course": "CS356",
+    "unit": 8,
+    "topic": "Data Layout Concepts",
+    "importance_score": 7,
+    "file_hash": "sha256 placeholder"
+  }
+}
+{
+  "deck_name": "CS356_Unit08_BufferOverflows",
+  "slide_number": 3,
+  "chunk_index": 0,
+  "title": "Structs: Data Alignment and Padding",
+  "summary": "Structs are collections of data members laid out consecutively, where padding is inserted between members to ensure memory alignment, which, while not required on Intel, significantly improves performance according to the ABI rule.",
+  "main_text": "Structs are collections of heterogeneous data. Each member is laid out in consecutive memory locations, with some padding inserted to ensure alignment. Intel machines don't require alignment but perform better when it is used. Reordering can reduce size! All compilers follow the ABI rule: 'Each elementary type should be aligned at a multiple of its size'.",
+  "notes_text": "The diagram visually compares the memory efficiency of a struct with and without padding, showing how padding is inserted to align subsequent members (like a pointer $\\text{p}$) to a multiple of their size.",
+  "keywords": [
+    "Structs",
+    "Heterogeneous Data",
+    "Memory Layout",
+    "Padding",
+    "Alignment",
+    "ABI Rule",
+    "Compiler Optimization",
+    "Structure Packing"
+  ],
+  "images": [
+    {
+      "description": "Diagram illustrating the memory layout of three example C structs (Data1, Data2, Data3), showing member offsets and the insertion of padding bytes to achieve alignment for optimal performance.",
+      "labels": [
+        "Data1",
+        "int x",
+        "char y",
+        "offset",
+        "Data2 (w/o padding)",
+        "short w",
+        "char *p",
+        "Data2 (w/ padding)",
+        "padding",
+        "Data3",
+        "f.x",
+        "f.y",
+        "g"
+      ],
+      "position": {
+        "x": 0.5,
+        "y": 0.5,
+        "width": 1.0,
+        "height": 1.0
+      }
+    }
+  ],
+  "layout": {
+    "num_text_boxes": 3,
+    "num_images": 1,
+    "dominant_visual_type": "mixed"
+  },
+  "metadata": {
+    "course": "CS356",
+    "unit": 8,
+    "topic": "Structs and Memory Alignment",
+    "importance_score": 9,
+    "file_hash": "sha256 placeholder"
+  }
+}
+{
+  "deck_name": "CS356_Unit08_BufferOverflows",
+  "slide_number": 4,
+  "chunk_index": 0,
+  "title": "Struct Offsets in Assembly",
+  "summary": "This slide explains how assembly language accesses struct members by using the base address of the struct and adding the computed byte offset of the specific member, demonstrating the effect of padding on offsets.",
+  "main_text": "Struct offsets in assembly. The C definition for a struct: $\\text{struct record}\\_\\text{t} \\{\\text{char a}[2]; \\text{int b}; \\text{long c}; \\text{int d...}\\}$ (The remainder of the struct definition is truncated).",
+  "notes_text": "Accessing a member like $\\text{b}$ would involve calculating its fixed offset from the start of the struct, which accounts for the size and any required padding of the preceding members ($\\text{a}[2]$).",
+  "keywords": [
+    "Struct Offsets",
+    "Assembly",
+    "Memory Access",
+    "Base Address",
+    "record_t",
+    "Data Access",
+    "Member Offset"
+  ],
+  "images": [],
+  "layout": {
+    "num_text_boxes": 2,
+    "num_images": 0,
+    "dominant_visual_type": "text-heavy"
+  },
+  "metadata": {
+    "course": "CS356",
+    "unit": 8,
+    "topic": "Struct Member Access",
+    "importance_score": 8,
+    "file_hash": "sha256 placeholder"
+  }
+}
+{
+  "deck_name": "CS356_Unit08_BufferOverflows",
+  "slide_number": 27,
+  "chunk_index": 0,
+  "title": "Return-Oriented Programming (ROP) Gadgets",
+  "summary": "ROP gadgets are short, useful sequences of existing instructions within a program's code, often accidentally created by instruction byte encoding, that end in a $\\text{ret}$ instruction and are chained together to execute arbitrary logic in a memory attack.",
+  "main_text": "Often, it is possible to find useful instructions within the byte encoding of other instructions. **Gadget:** short sequence of instructions followed by $\\text{ret}$ ($\\text{0xc3}$). For the example function $\\text{setval}\\_210$, the assembly is $\\text{400f15: c7 07 d4 48 89 c7 movl \$0xc78948d4,(%rdi)}$ followed by $\\text{400f1b: c3 retq}$. The bytes $\\text{48 89 c7}$ inside this sequence encode the $\\text{x86}\\_64$ instruction $\\text{movq %rax, %rdi}$. To start this gadget, set a return address to $\\text{0x400f18}$ (use little-endian format).",
+  "notes_text": "The power of ROP lies in re-using small snippets of legitimate code. By setting the return address to a point mid-instruction (like $\\text{0x400f18}$), the attacker executes only the desired gadget instruction and then uses the final $\\text{retq}$ to jump to the next gadget in their payload.",
+  "keywords": [
+    "Return-Oriented Programming",
+    "ROP",
+    "Gadgets",
+    "retq",
+    "0xc3",
+    "Code Reuse Attack",
+    "Instruction Encoding",
+    "movq %rax, %rdi",
+    "Little-Endian",
+    "Exploit"
+  ],
+  "images": [],
+  "layout": {
+    "num_text_boxes": 3,
+    "num_images": 0,
+    "dominant_visual_type": "mixed"
+  },
+  "metadata": {
+    "course": "CS356",
+    "unit": 8,
+    "topic": "ROP Gadgets",
+    "importance_score": 10,
+    "file_hash": "sha256 placeholder"
+  }
+}
+{
+  "deck_name": "CS356_Unit08_BufferOverflows",
+  "slide_number": 28,
+  "chunk_index": 0,
+  "title": "AttackLab: Known Instructions and Environment",
+  "summary": "This slide provides necessary context for the AttackLab security exercise, specifically detailing known instructions, memory locations, or target code that students can exploit for buffer overflow attacks.",
+  "main_text": "AttackLab: Known Instructions. This slide contains images that provide specific assembly snippets or memory layout diagrams relevant to the AttackLab environment.",
+  "notes_text": "Students must analyze these known instructions and the surrounding code to construct their attack payload, typically by calculating offsets and identifying ROP gadgets.",
+  "keywords": [
+    "AttackLab",
+    "Known Instructions",
+    "Buffer Overflow Attack",
+    "Security Exercise",
+    "ROP",
+    "Memory Dump",
+    "Assembly Snippet"
+  ],
+  "images": [
+    {
+      "description": "Image 18: Likely an assembly snippet or a section of the target binary's memory relevant for the attack.",
+      "labels": [],
+      "position": {
+        "x": 0.25,
+        "y": 0.5,
+        "width": 0.45,
+        "height": 0.4
+      }
+    },
+    {
+      "description": "Image 19: Likely a diagram or snippet providing further details on the target code's behavior or stack setup.",
+      "labels": [],
+      "position": {
+        "x": 0.75,
+        "y": 0.5,
+        "width": 0.45,
+        "height": 0.4
+      }
+    },
+    {
+      "description": "Image 20: Another code or memory visual for the AttackLab.",
+      "labels": [],
+      "position": {
+        "x": 0.25,
+        "y": 0.8,
+        "width": 0.45,
+        "height": 0.4
+      }
+    },
+    {
+      "description": "Image 21: Another code or memory visual for the AttackLab.",
+      "labels": [],
+      "position": {
+        "x": 0.75,
+        "y": 0.8,
+        "width": 0.45,
+        "height": 0.4
+      }
+    }
+  ],
+  "layout": {
+    "num_text_boxes": 1,
+    "num_images": 4,
+    "dominant_visual_type": "mixed"
+  },
+  "metadata": {
+    "course": "CS356",
+    "unit": 8,
+    "topic": "AttackLab Context",
+    "importance_score": 8,
+    "file_hash": "sha256 placeholder"
+  }
+}
+{
+  "deck_name": "CS356_Unit08_BufferOverflows",
+  "slide_number": 29,
+  "chunk_index": 0,
+  "title": "AttackLab: Finding ROP Gadgets with objdump",
+  "summary": "This slide demonstrates the practical technique of using the $\\text{objdump}$ utility in combination with $\\text{grep}$ to search the disassembled code of a target binary (rtarget) for specific byte sequences, which is how ROP gadgets are discovered.",
+  "main_text": "AttackLab: Finding Gadgets. The command $\\text{\$ objdump -d rtarget | grep -A2 '89 c7'}$ is used to search the disassembly for the byte sequence $\\text{'89 c7'}$. This sequence often corresponds to a useful instruction like $\\text{movq %rax, %rdi}$, which is then used as a gadget. The $\\text{-A2}$ flag prints the two lines following the match, helping identify the subsequent $\\text{retq}$ instruction.",
+  "notes_text": "This manual search process is a fundamental step in crafting an ROP attack payload when automatic gadget-finding tools are not available or not permitted.",
+  "keywords": [
+    "AttackLab",
+    "Finding Gadgets",
+    "objdump",
+    "grep",
+    "rtarget",
+    "Disassembly",
+    "ROP Gadget Discovery",
+    "Shell Command"
+  ],
+  "images": [],
+  "layout": {
+    "num_text_boxes": 1,
+    "num_images": 0,
+    "dominant_visual_type": "text-heavy"
+  },
+  "metadata": {
+    "course": "CS356",
+    "unit": 8,
+    "topic": "ROP Gadget Discovery",
+    "importance_score": 9,
+    "file_hash": "sha256 placeholder"
+  }
+}
