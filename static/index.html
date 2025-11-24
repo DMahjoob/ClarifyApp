@@ -20,7 +20,9 @@
     textarea {
       height: 100px;
       resize: vertical;
+      padding-right: 40px;
     }
+
     button {
       background-color: #4CAF50;
       color: white;
@@ -36,26 +38,138 @@
       margin-top: 10px;
       font-weight: bold;
     }
+    .textarea-wrapper {
+      position: relative;
+      width: 100%;
+    }
+    .corner-btn {
+      position: absolute;
+      top: 8px;
+      right: 8px;
+      width: 26px;
+      height: 26px;
+      border: none;
+      border-radius: 50%;
+      background: #e0e0e0;
+      color: black;
+      font-size: 14px;
+      line-height: 26px;
+      cursor: pointer;
+      padding: 0;
+      display: grid;
+      place-items: center;
+
+      z-index: 5;
+      appearance: none;
+    }
+
+
+    .corner-btn:hover {
+      background: #d5d5d5;
+    }
+
+    .corner-btn.listening {
+      background: #ffdddd;
+      animation: pulse 1.2s infinite;
+    }
+
+    @keyframes pulse {
+      0% { transform: scale(1); }
+      50% { transform: scale(1.08); }
+      100% { transform: scale(1); }
+    }
   </style>
 </head>
 <body>
   <h1>Ask a Question</h1>
   <form id="questionForm">
     <input type="text" id="user" placeholder="Your name" required><br>
-    <textarea id="text" placeholder="Type your question..." required></textarea><br>
+     <div class="textarea-wrapper">
+      <textarea id="text" placeholder="Type your question..." required></textarea>
+      <button type="button" id="micBtn" class="corner-btn" title="Voice input">🎤</button>
+    </div>
+    <br>
     <button type="submit">Submit Question</button>
   </form>
   
   <p id="status"></p>
 
   <script>
+    const micBtn = document.getElementById("micBtn");
+    const textArea = document.getElementById("text");
+    const statusEl = document.getElementById("status");
+
+    const SpeechRecognition =
+      window.SpeechRecognition || window.webkitSpeechRecognition;
+
+    let recognition = null;
+    let isListening = false;
+
+    if (SpeechRecognition) {
+      recognition = new SpeechRecognition();
+      recognition.lang = "en-US";
+      recognition.interimResults = true;
+      recognition.continuous = true;
+
+      let finalTranscript = "";
+
+      recognition.onstart = () => {
+        isListening = true;
+        micBtn.classList.add("listening");
+        micBtn.textContent = "⏹"; // stop icon
+        statusEl.innerText = "🎙 Listening...";
+        statusEl.style.color = "purple";
+      };
+
+      recognition.onresult = (event) => {
+        let interim = "";
+        for (let i = event.resultIndex; i < event.results.length; i++) {
+          const transcript = event.results[i][0].transcript;
+          if (event.results[i].isFinal) {
+            finalTranscript += transcript + " ";
+          } else {
+            interim += transcript;
+          }
+        }
+        textArea.value = finalTranscript + interim;
+      };
+
+      recognition.onerror = (e) => {
+        statusEl.innerText = "❌ Voice error: " + e.error;
+        statusEl.style.color = "red";
+      };
+
+      recognition.onend = () => {
+        isListening = false;
+        micBtn.classList.remove("listening");
+        micBtn.textContent = "🎤";
+        statusEl.innerText = "Voice input stopped.";
+        statusEl.style.color = "gray";
+      };
+
+      micBtn.addEventListener("click", () => {
+        if (!isListening) {
+          finalTranscript = textArea.value.trim() ? textArea.value + " " : "";
+          recognition.start();
+        } else {
+          recognition.stop();
+        }
+      });
+
+    } else {
+      // no speech support
+      micBtn.disabled = true;
+      micBtn.title = "Voice input not supported in this browser";
+      statusEl.innerText = "⚠️ Voice input not supported in this browser.";
+      statusEl.style.color = "orange";
+    }
+
     document.getElementById("questionForm").addEventListener("submit", async (e) => {
       e.preventDefault();
-      
+
       const user = document.getElementById("user").value;
-      const text = document.getElementById("text").value;
-      const statusEl = document.getElementById("status");
-      
+      const text = textArea.value;
+
       statusEl.innerText = "Sending...";
       statusEl.style.color = "blue";
       
