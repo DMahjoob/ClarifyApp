@@ -119,6 +119,72 @@ async def summarize_questions():
         print(f"Groq error: {e}")
         return None
 
+# ========== Quiz Generation ==========
+async def generate_quiz_from_summary(summary: str):
+    """
+    Generate quiz-style questions (MCQ, True/False, Fill-in-the-blank)
+    based on the summary text.
+    """
+    if not groq_client or not summary:
+        return None
+# variety of questions provided: mcq, true_false, fill_blank
+    quiz_prompt = f"""
+You are a helpful and clear teaching assistant.
+
+From the summarized content below, generate a short quiz with:
+- 3 Multiple Choice Questions (each with 4 options A-D, and clearly mark the correct answer)
+- 1 True/False question (mark correct answer)
+- 1 Fill-in-the-blank question (provide the answer)
+
+Keep questions directly grounded in the passage.
+Return JSON ONLY in this format:
+
+{{
+  "mcq": [
+    {{
+      "question": "...?",
+      "options": {{"A": "...", "B": "...", "C": "...", "D": "..."}},
+      "answer": "B"
+    }}
+  ],
+  "true_false": [
+    {{
+      "question": "...?",
+      "answer": true
+    }}
+  ],
+  "fill_blank": [
+    {{
+      "question": "_____ is ...",
+      "answer": "..."
+    }}
+  ]
+}}
+
+Summary:
+\"\"\"{summary}\"\"\"
+"""
+
+    try:
+        response = groq_client.chat.completions.create(
+            model="llama-3.1-8b-instant",
+            messages=[
+                {"role": "system", "content": "You generate quizzes only from provided content."},
+                {"role": "user", "content": quiz_prompt}
+            ],
+            max_tokens=800,
+            temperature=0.4 # slight creativity for quiz variety
+        )
+
+        quiz_json = response.choices[0].message.content
+        print("Quiz generated")
+        return quiz_json
+
+    except Exception as e:
+        print(f"Groq quiz generation error: {e}")
+        return None
+
+
 @app.on_event("startup")
 async def start_summarizer():
     """Background summarization loop"""
@@ -141,6 +207,15 @@ async def start_summarizer():
                             await client.send_json({"event": "summary", "data": summary})
                         except Exception:
                             disconnected.append(client)
+                    
+                    # Generate quiz from summary
+                    quiz = await generate_quiz_from_summary(summary)
+                    if quiz:
+                        for client in clients:
+                            try:
+                                await client.send_json({"event": "quiz", "data": quiz})
+                            except Exception:
+                                disconnected.append(client)
                     
                     for client in disconnected:
                         if client in clients:

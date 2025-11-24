@@ -13,9 +13,7 @@
       margin: 20px auto;
       padding: 20px;
     }
-    h1 {
-      color: #333;
-    }
+    h1 { color: #333; }
     .box {
       border: 1px solid #ccc;
       padding: 15px;
@@ -82,6 +80,11 @@
     <p style="color: #999;">AI summaries will appear here...</p>
   </div>
 
+  <h2>AI-Generated Quiz</h2>
+  <div id="quiz" class="box">
+    <p style="color: #999;">Quizzes will appear here after summaries...</p>
+  </div>
+
   <script>
     let questionCount = 0;
     const protocol = window.location.protocol === 'https:' ? 'wss:' : 'ws:';
@@ -121,9 +124,7 @@
           document.getElementById("questionCount").innerText = questionCount;
 
           const qDiv = document.getElementById("questions");
-          if (questionCount === 1) {
-            qDiv.innerHTML = "";
-          }
+          if (questionCount === 1) qDiv.innerHTML = "";
 
           const questionItem = document.createElement("div");
           questionItem.className = "question-item";
@@ -135,15 +136,12 @@
 
         if (msg.event === "summary") {
           const sDiv = document.getElementById("summaries");
-          if (sDiv.querySelector('p[style*="color: #999"]')) {
-            sDiv.innerHTML = "";
-          }
+          if (sDiv.querySelector('p[style*="color: #999"]')) sDiv.innerHTML = "";
 
           const time = new Date().toLocaleTimeString();
           const summaryItem = document.createElement("div");
           summaryItem.className = "summary-item";
 
-          // Parse markdown and highlight URGENT
           let markdownContent = msg.data.replace(/\[URGENT\]/gi, '<span class="urgent">[URGENT]</span>');
           let htmlContent = marked.parse(markdownContent);
 
@@ -152,10 +150,69 @@
 
           sDiv.scrollTop = sDiv.scrollHeight;
         }
+
+        if (msg.event === "quiz") {
+          const quizObj = JSON.parse(msg.data);
+          renderQuiz(quizObj);
+        }
+
       } catch (error) {
         console.error("Error parsing message:", error);
       }
     };
+
+    // renderQuiz is outside ws.onmessage
+    function renderQuiz(quiz) {
+      const quizDiv = document.getElementById("quiz");
+      quizDiv.innerHTML = "";
+
+      const time = new Date().toLocaleTimeString();
+
+      // MCQs
+      if (quiz.mcq && quiz.mcq.length) {
+        quizDiv.innerHTML += `<div class="summary-item"><b>[${time}] Multiple Choice</b></div>`;
+        quiz.mcq.forEach((q, i) => {
+          quizDiv.innerHTML += `
+            <div class="question-item">
+              <b>MCQ ${i + 1}:</b> ${q.question}<br>
+              A) ${q.options.A}<br>
+              B) ${q.options.B}<br>
+              C) ${q.options.C}<br>
+              D) ${q.options.D}<br>
+              <em><b>Answer:</b> ${q.answer}</em>
+            </div>
+          `;
+        });
+      }
+
+      // True/False
+      if (quiz.true_false && quiz.true_false.length) {
+        quizDiv.innerHTML += `<div class="summary-item"><b>True/False</b></div>`;
+        quiz.true_false.forEach((q, i) => {
+          quizDiv.innerHTML += `
+            <div class="question-item">
+              <b>T/F ${i + 1}:</b> ${q.question}<br>
+              <em><b>Answer:</b> ${q.answer ? "True" : "False"}</em>
+            </div>
+          `;
+        });
+      }
+
+      // Fill in the blanks
+      if (quiz.fill_blank && quiz.fill_blank.length) {
+        quizDiv.innerHTML += `<div class="summary-item"><b>Fill in the Blank</b></div>`;
+        quiz.fill_blank.forEach((q, i) => {
+          quizDiv.innerHTML += `
+            <div class="question-item">
+              <b>Blank ${i + 1}:</b> ${q.question}<br>
+              <em><b>Answer:</b> ${q.answer}</em>
+            </div>
+          `;
+        });
+      }
+
+      quizDiv.scrollTop = quizDiv.scrollHeight;
+    }
   </script>
 </body>
 </html>
