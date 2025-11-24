@@ -1,0 +1,545 @@
+{
+  "deck_name": "CS356_Unit07_AssemblyFlow",
+  "slide_number": 1,
+  "chunk_index": 0,
+  "title": "Unit 7: Conditional Flow - Jumps, Conditional Moves, Jump Tables",
+  "summary": "This introductory slide defines the scope of the unit, focusing on assembly language instructions used to control program flow, specifically Jumps, Conditional Moves, and Jump Tables.",
+  "main_text": "Unit 7: Conditional Flow\nJumps, Conditional Moves, Jump Tables",
+  "notes_text": "This unit introduces the foundational mechanisms for implementing control structures like if/else, while, and for loops in assembly language.",
+  "keywords": [
+    "Conditional Flow",
+    "Jumps",
+    "Conditional Moves",
+    "Jump Tables",
+    "Assembly",
+    "Control Structures"
+  ],
+  "images": [],
+  "layout": {
+    "num_text_boxes": 1,
+    "num_images": 1,
+    "dominant_visual_type": "text-heavy"
+  },
+  "metadata": {
+    "course": "CS356",
+    "unit": 7,
+    "topic": "Conditional Flow Introduction",
+    "importance_score": 7,
+    "file_hash": "sha256 placeholder"
+  }
+}
+{
+  "deck_name": "CS356_Unit07_AssemblyFlow",
+  "slide_number": 3,
+  "chunk_index": 0,
+  "title": "Fetching the Next CPU Instruction",
+  "summary": "This slide reviews the fundamental CPU operation of instruction fetching, which is dictated by the value stored in the program counter register, %rip.",
+  "main_text": "Remember: Fetching the next CPU instr.\nThe CPU continuously fetches the next instruction at %rip.\nRegisters:\n%rax: 00 00 00 00 00 00 00 01\n%rbx: 00 00 00 00 00 00 00 00\n%rcx: 11 22 33 44 55 66 77 88\n%rdx: 00 00 00 00 11 22 33 44\n%rip: 00 00 00 00 00 40 00 50 (Address for next instruction)\nWe need to fetch an instruction from memory. Arithmetic Logic Unit (ALU) implements operations on registers, e.g. +, -, &, ...",
+  "notes_text": "The diagram illustrates the instruction cycle: the Memory Controller/Bus Interface reads the instruction (instr. 48 89 c8) from the memory address specified by %rip (0x400050). The ALU performs data operations but is distinct from the instruction fetch logic.",
+  "keywords": [
+    "Instruction Fetch",
+    "%rip",
+    "Program Counter",
+    "Registers",
+    "ALU",
+    "Memory Controller",
+    "Instruction Cycle"
+  ],
+  "images": [
+    {
+      "description": "Diagram illustrating the process of fetching the next CPU instruction from memory. The %rip register holds the address 0x400050, which is used by the Memory Controller/Bus Interface to read the instruction (48 89 c8).",
+      "labels": [
+        "current instruction",
+        "registers",
+        "%rip",
+        "Arithmetic Logic Unit (ALU)",
+        "Memory controller / Bus Interface",
+        "read from 0x400050",
+        "fetch one instruction at the given address",
+        "instr. 48 89 c8"
+      ],
+      "position": {
+        "x": 0.5,
+        "y": 0.5,
+        "width": 1.0,
+        "height": 1.0
+      }
+    }
+  ],
+  "layout": {
+    "num_text_boxes": 3,
+    "num_images": 1,
+    "dominant_visual_type": "diagram"
+  },
+  "metadata": {
+    "course": "CS356",
+    "unit": 7,
+    "topic": "Instruction Fetching",
+    "importance_score": 8,
+    "file_hash": "sha256 placeholder"
+  }
+}
+{
+  "deck_name": "CS356_Unit07_AssemblyFlow",
+  "slide_number": 4,
+  "chunk_index": 0,
+  "title": "Introduction to Jumps: Unconditional and Conditional",
+  "summary": "This slide explains the necessity of jump instructions in assembly to break sequential execution and implement high-level control structures, differentiating between unconditional and conditional jumps.",
+  "main_text": "Assembly instructions are executed sequentially by incrementing %rip. To implement control structures such as 'if/then/else', 'while', 'do/while', and 'for', we need to modify %rip depending on some loop condition.\nJump instructions modify %rip.\n\n* **Unconditional Jumps**\n    * `jmp .L1`: Jump to the code at address .L1.\n\n* **Conditional Jumps**\n    * `jg .L1`: Same as above, but only if the '>' (greater) condition is satisfied for the previous comparison (cmp, test).",
+  "notes_text": "The C code and corresponding assembly for an 'if-else' block demonstrates how conditional jump (`jg .L2`) and an unconditional jump (`jmp .L3`) are used to implement control flow. The `cmpq $5, %rax` instruction sets the condition codes checked by the conditional jump.",
+  "keywords": [
+    "Jumps",
+    "Unconditional Jump",
+    "Conditional Jump",
+    "%rip modification",
+    "Control Structures",
+    "jmp",
+    "jg",
+    "cmp"
+  ],
+  "images": [],
+  "layout": {
+    "num_text_boxes": 3,
+    "num_images": 0,
+    "dominant_visual_type": "mixed"
+  },
+  "metadata": {
+    "course": "CS356",
+    "unit": 7,
+    "topic": "Jump Instructions",
+    "importance_score": 9,
+    "file_hash": "sha256 placeholder"
+  }
+}
+{
+  "deck_name": "CS356_Unit07_AssemblyFlow",
+  "slide_number": 5,
+  "chunk_index": 0,
+  "title": "Jumps and %rip: Using Offsets",
+  "summary": "This slide details how jump instructions physically alter program flow by adding an offset to the Program Counter (%rip), demonstrating the binary encoding for a jump.",
+  "main_text": "Jump instructions add an **offset** (positive/negative) to %rip (i.e., %rip = %rip + offset).\nFor example, the instruction `jg .L2` with Binary Encoding `7f 06` really says: 'add **6** to %rip if the > condition was true' (so that we skip 6 bytes of 'then branch').\n\n**Assembly Code Snippet (f):**\n0: `leaq 3(%rdi), %rax` (4 bytes)\n4: `cmpq $5, %rax` (4 bytes)\n8: `jg .L2` (2 bytes, offset `06`)\na: `addq $7, %rax` (4 bytes)\ne: `jmp .L3` (2 bytes, offset `04`)\n.L2: 10: `addq $9, %rax` (4 bytes)\n.L3: 14: `addq $10, %rax` (4 bytes)\n18: `ret` (1 byte)",
+  "notes_text": "The key takeaway is that assembly jumps are typically relative, using a small offset added to the current %rip value, rather than jumping to an absolute memory address. This is why the jump at address '8' skips 6 bytes to reach address '10' (a + 4 = e, e + 2 = 10, so 10 - 8 = 2 bytes for the instruction + 6 bytes offset = 8 bytes skip from instruction start, or 6 bytes from instruction end).",
+  "keywords": [
+    "Jump Offset",
+    "Relative Jump",
+    "%rip update",
+    "Binary Encoding",
+    "Instruction Length",
+    "jg",
+    "jmp"
+  ],
+  "images": [],
+  "layout": {
+    "num_text_boxes": 3,
+    "num_images": 1,
+    "dominant_visual_type": "mixed"
+  },
+  "metadata": {
+    "course": "CS356",
+    "unit": 7,
+    "topic": "Jump Implementation Details",
+    "importance_score": 8,
+    "file_hash": "sha256 placeholder"
+  }
+}
+{
+  "deck_name": "CS356_Unit07_AssemblyFlow",
+  "slide_number": 6,
+  "chunk_index": 0,
+  "title": "Comparison Instructions for Conditional Jumps",
+  "summary": "This slide categorizes conditional jump instructions based on signed, unsigned, and equality comparisons, and introduces the `cmpq` and `testq` instructions used to set the necessary condition codes.",
+  "main_text": "Conditional jumps check flags set by a previous comparison instruction (like `cmp` or `test`).\n\n**Signed Comparison** (>, >=, <=, <):\n* `jg`, `jge`, `jle`, `jl`\n\n**Unsigned Comparison** (>, >=, <=, <):\n* `ja`, `jae`, `jbe`, `jb`\n\n**Signed/Unsigned Equality Comparison** (==, !=):\n* `je`, `jne`\n\n**Examples:**\n* `cmpq %rax, %rbx` / `jge .L1`: Jump if **%rbx >= %rax**.\n* `testq %rbx, %rbx` / `jge .L1`: Jump if **%rbx >= 0** (Checks if a register value is non-negative or non-zero).",
+  "notes_text": "The `cmpq src1, src2` instruction computes `src2 - src1` and sets the flags. The `testq src1, src2` instruction computes `src1 & src2` and sets flags. `testq reg, reg` is a common idiom to check if a register is zero, non-zero, negative, or non-negative.",
+  "keywords": [
+    "Conditional Jumps",
+    "Signed Comparison",
+    "Unsigned Comparison",
+    "Equality Comparison",
+    "cmpq",
+    "testq",
+    "jge",
+    "jae",
+    "je"
+  ],
+  "images": [],
+  "layout": {
+    "num_text_boxes": 3,
+    "num_images": 0,
+    "dominant_visual_type": "text-heavy"
+  },
+  "metadata": {
+    "course": "CS356",
+    "unit": 7,
+    "topic": "Conditional Jump Types",
+    "importance_score": 9,
+    "file_hash": "sha256 placeholder"
+  }
+}
+{
+  "deck_name": "CS356_Unit07_AssemblyFlow",
+  "slide_number": 7,
+  "chunk_index": 0,
+  "title": "BombLab Example: Phase 1 Dissection",
+  "summary": "This slide uses a BombLab example (Phase 1) to demonstrate the assembly implementation of an 'if-else' structure based on string comparison (`strcmp`) and conditional jumps.",
+  "main_text": "The C function `phase1` compares the input string with \"gandalf\\n\" using `strcmp`. It returns 0 for a correct input (match) and 1 for a wrong input.\n\n```c\nint phase1 (char *input) {\n    if (strcmp(input, \"gandalf\\n\"))\n        return 1; // wrong input\n    else\n        return 0; // right input\n}\n```\n\n**Assembly (`phase1`):**\n1. `callq strcmp`\n2. `testl %eax, %eax`: Checks if the result of `strcmp` (in `%eax`) is zero.\n3. `je .L1`: **Jump if Equal/Zero** to `.L1` (Skip the 'wrong input' code if `strcmp` returned 0).\n4. `movl $1, %eax`: Set return value to 1 (wrong input).\n5. `.L1: ret`: Returns 0 if jumped, or 1 if the skip was not taken.\n\n**Assembly (`main`):**\n1. `call phase1`\n2. `testl %eax, %eax`: Checks if `phase1` returned zero.\n3. `jne .L6`: **Jump if Not Equal/Not Zero** to `.L6` (`explode_bomb`) if `phase1` returned a nonzero value (1).",
+  "notes_text": "This is a classic example of how C's logic is inverted in assembly: a successful comparison (`strcmp` returns 0) is checked with `testl %eax, %eax` which sets the ZF flag, leading to a `je` (jump if zero/equal). If the input is wrong (`strcmp` returns non-zero), the `je` is skipped, and the 'wrong input' return value is set.",
+  "keywords": [
+    "BombLab",
+    "strcmp",
+    "testl",
+    "je",
+    "jne",
+    "Conditional Flow",
+    "Return Value",
+    "Explode Bomb"
+  ],
+  "images": [],
+  "layout": {
+    "num_text_boxes": 3,
+    "num_images": 0,
+    "dominant_visual_type": "mixed"
+  },
+  "metadata": {
+    "course": "CS356",
+    "unit": 7,
+    "topic": "Conditional Flow Example (BombLab)",
+    "importance_score": 10,
+    "file_hash": "sha256 placeholder"
+  }
+}
+{
+  "deck_name": "CS356_Unit07_AssemblyFlow",
+  "slide_number": 8,
+  "chunk_index": 0,
+  "title": "Example 1: If-Else and Nested Conditionals",
+  "summary": "This slide presents two C functions, `func1` (simple if-else) and `func2` (nested/chained conditionals), and their assembly translations using `cmp` and conditional jumps.",
+  "main_text": "**func1 (Min/Max)**\n```c\nif (x < y)\n    *res = x;\nelse\n    *res = y;\n```\nAssembly uses `cmpl %esi, %edi` (compares x and y) and `jge .L2` (jump if x is greater than or equal to y, i.e., skip the 'x is min' block). If the jump is taken, it moves y to `*res`. Otherwise, it moves x to `*res` then returns.\n\n**func2 (Complex Conditional)**\n```c\nif(x == -1 || y == -1)\n    *res = y-1;\nelse if(x > 0 && y < x)\n    *res = x+1;\nelse\n    *res = 0;\n```\nAssembly handles the OR condition with two sequential `je .L6` instructions. It then handles the AND condition by checking `x > 0` (`testl %edi, %edi` / `jle .L5`) and then `y < x` (`cmpl %esi, %edi` / `jle .L5`). Skipping any part of the compound condition leads to the final `else` block (`.L5`). The first two blocks jump to `.L5` or `.L6`, and the successful blocks use `ret` to exit, effectively implementing the flow.",
+  "notes_text": "Register assignments: x=%edi, y=%esi, res=%rdx. The assembly for `func2` shows a typical pattern: early exit on failure or conditional jump to a shared 'false' or 'next' label to implement complex boolean logic.",
+  "keywords": [
+    "If-Else Assembly",
+    "Nested Conditionals",
+    "cmpl",
+    "jge",
+    "testl",
+    "je",
+    "jle",
+    "Boolean Logic"
+  ],
+  "images": [],
+  "layout": {
+    "num_text_boxes": 3,
+    "num_images": 0,
+    "dominant_visual_type": "comparison"
+  },
+  "metadata": {
+    "course": "CS356",
+    "unit": 7,
+    "topic": "If-Else Assembly Examples",
+    "importance_score": 9,
+    "file_hash": "sha256 placeholder"
+  }
+}
+{
+  "deck_name": "CS356_Unit07_AssemblyFlow",
+  "slide_number": 9,
+  "chunk_index": 0,
+  "title": "Example 2: Loop Implementation (While and For)",
+  "summary": "This slide demonstrates how high-level loop structures like `while` (string length) and `for` (find minimum) are translated into assembly using conditional and unconditional jumps to manage the loop condition and iteration.",
+  "main_text": "**func3 (String Length / While Loop)**\n```c\nint i = 0;\nwhile(str[i] != 0){\n    i++;\n}\nreturn i;\n```\nAssembly implementation:\n1.  Initializes i (`%eax`) to 0.\n2.  Jumps to `.L2` (the condition check).\n3.  `.L3` (loop body): increments i (`%eax`).\n4.  `.L2` (condition check): Checks if `str[i]` is not null (0) using `cmpb $0, (%rdi,%rdx)`.\n5.  `jne .L3`: **Jump if Not Equal** back to the loop body (`.L3`) if the condition is true.\n6.  If the condition is false, execution falls through to `ret`.\n\n**func4 (Min in Array / For Loop)**\n```c\nfor (int i=1; i < len; i++) {\n    if (dat[i] < min) {\n        min = dat[i];\n    }\n}\n```\nAssembly uses labels (`.L4` for the loop test, `.L2` for the loop end test) and conditional jumps (`jl .L4`, `jle .L3`) to manage the loop bounds and the inner `if` condition.",
+  "notes_text": "The while loop structure uses an initial jump to the test to prevent execution before the first check. The loop condition is implemented by a comparison followed by a conditional jump back to the loop body label, and the loop termination is the fall-through to the `ret` instruction.",
+  "keywords": [
+    "While Loop",
+    "For Loop",
+    "Loop Assembly",
+    "cmpb",
+    "jne",
+    "jl",
+    "Loop Condition",
+    "String Length"
+  ],
+  "images": [],
+  "layout": {
+    "num_text_boxes": 3,
+    "num_images": 0,
+    "dominant_visual_type": "comparison"
+  },
+  "metadata": {
+    "course": "CS356",
+    "unit": 7,
+    "topic": "Loop Assembly Examples",
+    "importance_score": 9,
+    "file_hash": "sha256 placeholder"
+  }
+}
+{
+  "deck_name": "CS356_Unit07_AssemblyFlow",
+  "slide_number": 11,
+  "chunk_index": 0,
+  "title": "Condition Codes and the FLAGS Register",
+  "summary": "This slide introduces the concept of **Condition Codes** and the **FLAGS register**, explaining that comparison instructions set specific flags that conditional jumps examine to determine program flow.",
+  "main_text": "Conditional jump instructions (e.g., `jge`) need to know the result of a previous comparison instruction (e.g., `cmpq`).\n\n**Condition Codes/FLAGS Register:** `cmp`, `test`, and most instructions (based on their result) update specific bits of the **FLAGS register**.\n\n* **ZF (Zero Flag):** Tests if the result is equal to 0.\n* **SF (Sign Flag):** Tests if the result is negative (copy of MSB of the result).\n* **OF (2's Complement Overflow Flag):** Set if signed overflow has occurred.\n* **CF (Carry Flag / Unsigned Overflow):** Set if unsigned overflow has occurred.\n\n**Diagram:** Shows the structure of the EFLAGS Register (31 bits, with SF, ZF, CF, OF bits highlighted) and the CPU processing the flags.",
+  "notes_text": "The example `cmpq %rax, %rbx / jge .L1` demonstrates this dependency: `cmpq` sets the flags, and then `jge` reads the flags to decide whether to jump. Flags are essential for implementing both signed and unsigned comparisons accurately.",
+  "keywords": [
+    "Condition Codes",
+    "FLAGS Register",
+    "EFLAGS",
+    "ZF",
+    "SF",
+    "OF",
+    "CF",
+    "cmp",
+    "test",
+    "Signed Overflow",
+    "Unsigned Overflow"
+  ],
+  "images": [],
+  "layout": {
+    "num_text_boxes": 2,
+    "num_images": 1,
+    "dominant_visual_type": "mixed"
+  },
+  "metadata": {
+    "course": "CS356",
+    "unit": 7,
+    "topic": "Condition Codes and Flags Register",
+    "importance_score": 10,
+    "file_hash": "sha256 placeholder"
+  }
+}
+{
+  "deck_name": "CS356_Unit07_AssemblyFlow",
+  "slide_number": 12,
+  "chunk_index": 0,
+  "title": "Instructions That Set Condition Codes: CMP and TEST",
+  "summary": "This slide explains the operation and effects of the `cmp` (compare) and `test` (test bits) instructions on the Condition Codes, detailing their use for both signed and unsigned comparisons.",
+  "main_text": "**cmp[bwql] src1, src2**\n* **Used to compare src2 with src1** (e.g., src2==src1, src2<src1).\n* **Real meaning:** Calculate **(src2 – src1)** and set the condition codes based on the result. `src1` and `src2` are not changed.\n* If `(src2 == src1)`, **ZF is set to 1**.\n* If `(src2 – src1) < 0`, **SF is set to 1**.\n* If `(src2 – src1)` overflows, **OF = 1**.\n    * **Signed comparison (src2 < src1)**: if `(SF ^ OF == 1)`.\n    * **Unsigned comparison (src2 < src1)**: if `(CF == 1)`.\n\n**test[bwql] src1, src2 (or test reg, reg / test $3, reg)**\n* **Used to compare reg with 0** or check if a register is a multiple of a power of 2.\n* **Real meaning:** Calculate **(src1 & src2)**, set **ZF/SF** based on the result, and set **OF=CF=0**.\n* In `test reg, reg`, **ZF is set to 1 only when reg == 0**. **SF is set to 1 only when reg < 0**.\n* In `test $3, reg` (mask 11 in binary), **ZF is set to 1 only when reg&3 == 0** (i.e., multiple of $2^2$).",
+  "notes_text": "The `cmp` instruction's role in signed comparison is tied to the result of XORing the Sign Flag (SF) and the Overflow Flag (OF). The `test` instruction is primarily for checking zero/non-zero and sign, as it clears the Carry and Overflow flags.",
+  "keywords": [
+    "cmp instruction",
+    "test instruction",
+    "Compare",
+    "Bitwise AND",
+    "ZF setting",
+    "SF setting",
+    "OF setting",
+    "CF setting",
+    "Flags"
+  ],
+  "images": [],
+  "layout": {
+    "num_text_boxes": 2,
+    "num_images": 0,
+    "dominant_visual_type": "text-heavy"
+  },
+  "metadata": {
+    "course": "CS356",
+    "unit": 7,
+    "topic": "CMP and TEST Instructions",
+    "importance_score": 9,
+    "file_hash": "sha256 placeholder"
+  }
+}
+{
+  "deck_name": "CS356_Unit07_AssemblyFlow",
+  "slide_number": 13,
+  "chunk_index": 0,
+  "title": "Conditional Jumps and the FLAGS Register Mapping",
+  "summary": "This slide provides a complete mapping of all conditional jump instructions, their synonyms, and the exact boolean logic of the FLAGS register bits (ZF, SF, OF, CF) they examine to determine the jump condition.",
+  "main_text": "For all jump instructions other than `jmp` (unconditional), some previous instruction (`cmp`, `test`, etc.) is needed to set the condition codes to be examined by the jump.\n\n| Instruction | Synonym | Jump Condition | Description |\n| :--- | :--- | :--- | :--- |\n| `je label` | `jz` | ZF | Equal / zero |\n| `jne label` | `jnz` | ~ZF | Not equal / not zero |\n| `js label` | | SF | Negative |\n| `jns label` | | ~SF | Non-negative |\n| `jg label` | `jnle` | $\\sim($SF $\\wedge$ OF) $\\wedge \\sim$ZF | Greater (signed >) |\n| `jge label` | `jnl` | $\\sim($SF $\\wedge$ OF) | Greater or Equal (signed >=) |\n| `jl label` | `jnge` | (SF $\\wedge$ OF) | Less (signed <) |\n| `jle label` | `jng` | (SF $\\wedge$ OF) $\\vee$ ZF | Less or equal (signed <=) |\n| `ja label` | `jnbe` | $\\sim$CF $\\wedge \\sim$ZF | Above (unsigned >) |\n| `jae label` | `jnb` | $\\sim$CF | Above or equal (unsigned >=) |\n| `jb label` | `jnae` | CF | Below (unsigned <) |\n| `jbe label` | `jna` | CF $\\vee$ ZF | Below or equal (unsigned <=) |\n\n*Note on notation: $\\sim$ means NOT, $\\wedge$ means AND, $\\vee$ means OR, $\\wedge$ is XOR.*",
+  "notes_text": "Signed comparisons rely on the relationship between SF and OF, while unsigned comparisons primarily use CF and ZF. The ability to express the jump condition as a logical formula of the flags is key to understanding the underlying hardware logic.",
+  "keywords": [
+    "Conditional Jump Logic",
+    "Jump Conditions",
+    "Flag Combination",
+    "Signed Jump",
+    "Unsigned Jump",
+    "je",
+    "jg",
+    "ja",
+    "jz"
+  ],
+  "images": [],
+  "layout": {
+    "num_text_boxes": 2,
+    "num_images": 0,
+    "dominant_visual_type": "comparison"
+  },
+  "metadata": {
+    "course": "CS356",
+    "unit": 7,
+    "topic": "Conditional Jump Table",
+    "importance_score": 10,
+    "file_hash": "sha256 placeholder"
+  }
+}
+{
+  "deck_name": "CS356_Unit07_AssemblyFlow",
+  "slide_number": 15,
+  "chunk_index": 0,
+  "title": "Condition Codes: Move and Logical/Bitwise Operations",
+  "summary": "This slide specifies which classes of instructions affect the condition codes, noting that `mov` and `lea` do not, while logical/bitwise operations (`and`, `or`, `xor`) affect SF and ZF but clear CF and OF.",
+  "main_text": "**Instructions that LEAVE Condition Codes UNCHANGED:**\n* `mov` (Move data)\n* `lea` (Load Effective Address)\n\n**Logical Instructions that UPDATE Flags:**\n* `and`, `or`, `xor`\n* These update **SF** and **ZF** based on the result.\n* They **clear CF and OF to 0**.\n* `not` does **not affect** the condition codes in any way.\n\n**Example effects on RDX (32-bit):**\n* `movw $0, %dx`: Sets DX to 0. Flags: ZF=1 (Result is 0), SF=0, CF=0, OF=0.\n* `leaq -1(%rdx), %rdx`: Subtracts 1 from RDX (no flags changed).\n* `andb $0xcc, %dl`: Result has a non-zero MSB. Flags: SF=1 (Negative), ZF=0, CF=0, OF=0.",
+  "notes_text": "It's critical to know which instructions modify the flags, as conditional jumps rely on these settings. `mov` and `lea` are safe to use between a `cmp/test` and a conditional jump without invalidating the comparison result.",
+  "keywords": [
+    "Condition Code Update",
+    "mov instruction",
+    "lea instruction",
+    "and instruction",
+    "or instruction",
+    "xor instruction",
+    "not instruction",
+    "Flags cleared",
+    "ZF",
+    "SF"
+  ],
+  "images": [],
+  "layout": {
+    "num_text_boxes": 3,
+    "num_images": 0,
+    "dominant_visual_type": "mixed"
+  },
+  "metadata": {
+    "course": "CS356",
+    "unit": 7,
+    "topic": "Flags and Data Movement",
+    "importance_score": 8,
+    "file_hash": "sha256 placeholder"
+  }
+}
+{
+  "deck_name": "CS356_Unit07_AssemblyFlow",
+  "slide_number": 16,
+  "chunk_index": 0,
+  "title": "Condition Codes: Shift Instructions",
+  "summary": "This slide outlines how shift instructions (`shl`, `sal`, `shr`, `sar`) affect the condition codes, particularly how SF, ZF, and CF are set and the distinct ways OF is handled for 1-bit shifts.",
+  "main_text": "Shift instructions update condition codes based on the shift operation:\n\n* **SF:** Copy of the MSB of the result.\n* **ZF:** 1 if and only if the result is 0.\n* **CF (Carry Flag):** The **last bit shifted out** of the input.\n* **OF (Overflow Flag):** **Undefined** for shifts of more than 1 bit. For 1-bit shifts:\n    * **Left Shifts (SHL/SAL) by 1-bit:** OF = 1 if the MSB (sign bit) changed (i.e., $\\text{CF} \\wedge \\text{MSB}(\\text{result})$).\n    * **Logical Right Shift (SHR) by 1-bit:** OF is set with the **ORIGINAL MSB** of the input value.\n    * **Arithmetic Right Shift (SAR) by 1-bit:** OF is **always set to 0**.",
+  "notes_text": "Understanding the flag-setting behavior of shift instructions is vital for using them in conjunction with conditional jumps. The Carry Flag (CF) is particularly important for multi-precision arithmetic, while the unique OF behavior for 1-bit shifts is important for signed arithmetic and overflow detection.",
+  "keywords": [
+    "Shift Instructions",
+    "SHL",
+    "SAL",
+    "SHR",
+    "SAR",
+    "CF",
+    "OF",
+    "ZF",
+    "SF",
+    "Arithmetic Shift",
+    "Logical Shift"
+  ],
+  "images": [
+    {
+      "description": "A diagram illustrating the effect of SHL/SAL, SHR, and SAR 1-bit shifts on the condition codes, showing the bits shifted in and out, and the resulting CF and OF flags.",
+      "labels": [
+        "input",
+        "result",
+        "CF",
+        "OF",
+        "SF",
+        "MSB changed",
+        "Copies of MSB are shifted in"
+      ],
+      "position": {
+        "x": 0.5,
+        "y": 0.5,
+        "width": 1.0,
+        "height": 1.0
+      }
+    }
+  ],
+  "layout": {
+    "num_text_boxes": 1,
+    "num_images": 1,
+    "dominant_visual_type": "mixed"
+  },
+  "metadata": {
+    "course": "CS356",
+    "unit": 7,
+    "topic": "Shift Instruction Flags",
+    "importance_score": 9,
+    "file_hash": "sha256 placeholder"
+  }
+}
+{
+  "deck_name": "CS356_Unit07_AssemblyFlow",
+  "slide_number": 20,
+  "chunk_index": 0,
+  "title": "Pipelining and The Cost of Conditional Jumps",
+  "summary": "This slide explains how modern CPU pipelining and speculative execution are negatively affected by conditional jumps, leading to performance penalties when the jump is mispredicted.",
+  "main_text": "**Pipelining:** Modern CPUs overlap the execution of multiple instructions. While one instruction is executing, the next is being decoded, and the one after that is being fetched from memory.\n\n**Speculative Execution:** Conditional jumps force the CPU to guess what instruction will be next (i.e., which branch to follow).\n\n**The Cost of Conditional Jumps:**\n* If the guess is right, we get good performance.\n* If the guess is wrong (mispredicted), we have to throw away the wrongly fetched/decoded instructions once we realize the jump was mispredicted. This incurs a significant performance penalty.",
+  "notes_text": "The diagram illustrates the pipeline stages (fetch, decode, execute) overlapping for three sequential instructions. A mispredicted conditional jump essentially voids the work done on the subsequent speculatively executed instructions, necessitating a pipeline flush.",
+  "keywords": [
+    "Pipelining",
+    "Speculative Execution",
+    "Conditional Jumps Cost",
+    "Misprediction",
+    "Performance Penalty",
+    "Instruction Fetch",
+    "Pipeline Flush"
+  ],
+  "images": [
+    {
+      "description": "A timeline diagram illustrating instruction pipelining, showing the fetch, decode, and execute stages of three instructions (1, 2, 3) overlapping in time.",
+      "labels": [
+        "time",
+        "fetch",
+        "decode",
+        "execute"
+      ],
+      "position": {
+        "x": 0.75,
+        "y": 0.75,
+        "width": 0.5,
+        "height": 0.5
+      }
+    }
+  ],
+  "layout": {
+    "num_text_boxes": 2,
+    "num_images": 1,
+    "dominant_visual_type": "mixed"
+  },
+  "metadata": {
+    "course": "CS356",
+    "unit": 7,
+    "topic": "Pipelining and Branch Prediction",
+    "importance_score": 10,
+    "file_hash": "sha256 placeholder"
+  }
+}
+{
+  "deck_name": "CS356_Unit07_AssemblyFlow",
+  "slide_number": 21,
+  "chunk_index": 0,
+  "title": "Conditional Moves: Pipelining-Friendly Flow Control",
+  "summary": "Conditional moves (CMOV) are introduced as a technique to avoid conditional jumps, improving pipelining by computing both possible results and using a single move instruction to select the correct one.",
+  "main_text": "The idea of Conditional Moves is to be more pipelining friendly:\n1.  Compute both results (sequentially, no jumps).\n2.  Keep the correct result when the condition is known.\n\nThis allows for pure sequential execution. With jumps, the CPU had to choose which instruction to fetch next. With conditional moves, we only need to choose whether to save or discard a computed result.\n\n**Example C Code:**\n```c\nif(x > 5) {\n    *res = x+1;\n} else {\n    *res = x-1;\n}\n```\n\n**With Conditional Moves (-O3 Optimization):**\n1.  `leal 1(%rdi), %edx` (Compute x+1, the 'then' value).\n2.  `leal -1(%rdi), %eax` (Compute x-1, the 'else' value).\n3.  `cmpl $6, %edi` (Sets flags for x > 5).\n4.  `cmovge %edx, %eax` (If condition $x \\geq 6$ is true, move the 'then' value $\\text{edx}$ into the 'else' value $\\text{eax}$).\n5.  `movl %eax, (%rsi)` (Save the final result to `*res`).",
+  "notes_text": "The key benefit of conditional moves is transforming control dependency (the jump) into data dependency (the move), which eliminates branch misprediction penalties at the cost of computing potentially unnecessary results.",
+  "keywords": [
+    "Conditional Moves",
+    "CMOV",
+    "Pipelining Friendly",
+    "Branch Misprediction",
+    "Data Dependency",
+    "Sequential Execution",
+    "cmovge"
+  ],
+  "images": [],
+  "layout": {
+    "num_text_boxes": 3,
+    "num_images": 0,
+    "dominant_visual_type": "comparison"
+  },
+  "metadata": {
+    "course": "CS356",
+    "unit": 7,
+    "topic": "Conditional Moves Concept",
+    "importance_score": 10,
+    "file_hash": "sha256 placeholder"
+  }
+}
+{
+  "deck_name": "CS356_Unit07_AssemblyFlow",
+  "slide_number": 22,
+  "chunk_index": 0,
+  "title": "

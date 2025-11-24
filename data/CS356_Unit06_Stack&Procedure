@@ -1,0 +1,551 @@
+[
+  {
+    "deck_name": "CS356Unit06_AssemblyStack",
+    "slide_number": 1,
+    "chunk_index": 0,
+    "title": "Unit 6: Stack & Procedures",
+    "summary": "This slide introduces the main topic of the unit, which is the system stack and its use in procedures, specifically adhering to the Linux x86-64 Application Binary Interface (ABI) conventions.",
+    "main_text": "Unit 6: Stack & Procedures. And their Linux x86-64 ABI conventions…",
+    "notes_text": "",
+    "keywords": [
+      "Stack",
+      "Procedures",
+      "Assembly",
+      "Linux",
+      "x86-64",
+      "ABI",
+      "Conventions"
+    ]
+  },
+  {
+    "deck_name": "CS356Unit06_AssemblyStack",
+    "slide_number": 2,
+    "chunk_index": 0,
+    "title": "Introduction to the System Stack",
+    "summary": "This slide defines the system stack as a reserved memory region used by each process thread, noting its Last-In-First-Out (LIFO) policy and its primary uses for local function data and managing function calls.",
+    "main_text": "System Stack. Each thread of a process (= running program) has its own stack: Just a reserved region of memory that 'grows toward lower addresses'. The special register %rsp points to the top of the stack. The policy is Last-In-First-Out (LIFO). Used for: Local data of functions (if registers are not sufficient), and Function calls (to save the 'return address').",
+    "notes_text": "The stack is a fundamental data structure in program execution. The growth towards lower addresses is a key convention on x86-64 architecture, meaning pushing data decrements the stack pointer, and popping increments it.",
+    "keywords": [
+      "System Stack",
+      "Thread",
+      "Process",
+      "Memory",
+      "Lower Addresses",
+      "%rsp",
+      "Stack Pointer",
+      "LIFO",
+      "Local Data",
+      "Function Calls",
+      "Return Address"
+    ]
+  },
+  {
+    "deck_name": "CS356Unit06_AssemblyStack",
+    "slide_number": 3,
+    "chunk_index": 0,
+    "title": "Stack Visualization and Growth Direction",
+    "summary": "This slide visually depicts the stack within memory, illustrating that it grows towards lower memory addresses and is managed by the %rsp register, which points to the initial 'top' of the stack.",
+    "main_text": "Stack visualization within Memory/RAM. The stack grows towards lower addresses. The register %rip (Instruction Pointer) and %rsp (Stack Pointer) are shown. Initial 'top' of the stack is indicated. Memory addresses are decreasing as the stack grows (e.g., from $0x7fffffff8$ down to $0x7fffffe0$).",
+    "notes_text": "This diagram establishes the memory map convention for the stack, which is critical for understanding push and pop operations.",
+    "keywords": [
+      "Stack",
+      "Memory",
+      "RAM",
+      "%rsp",
+      "Stack Pointer",
+      "Lower Addresses",
+      "%rip",
+      "Instruction Pointer",
+      "Initial Top",
+      "Visualization"
+    ]
+  },
+  {
+    "deck_name": "CS356Unit06_AssemblyStack",
+    "slide_number": 4,
+    "chunk_index": 0,
+    "title": "The PUSH Operation (pushq %rax)",
+    "summary": "This slide explains the x86-64 `pushq` assembly instruction, which allocates 8 bytes on the stack and copies a 64-bit register's content, equivalent to decrementing %rsp by 8 bytes and then storing the register's value to the new %rsp address.",
+    "main_text": "Push operation: The instruction is `pushq %rax`. This allocates 8 bytes on the stack and then copies the content of register %rax. This is equivalent to: `subq $8,%rsp` (decrement %rsp by 8) and `movq %rax,(%rsp)` (save %rax to address %rsp). The visualization shows %rsp moving from $0x7fffffff8$ to $0x7fffffff0$ after the push, with the content of %rax ($1111 2222 3333 4444$) now stored on the stack.",
+    "notes_text": "The pushq operation is a convenience instruction that combines the stack pointer adjustment and the memory write, always dealing with 8-byte (quad-word) values in x86-64.",
+    "keywords": [
+      "Push",
+      "pushq",
+      "%rax",
+      "Allocate",
+      "8 bytes",
+      "Stack",
+      "%rsp",
+      "decrement",
+      "subq",
+      "movq",
+      "Stack Pointer Adjustment",
+      "Visualization"
+    ]
+  },
+  {
+    "deck_name": "CS356Unit06_AssemblyStack",
+    "slide_number": 5,
+    "chunk_index": 0,
+    "title": "The POP Operation (popq %rdx)",
+    "summary": "This slide explains the x86-64 `popq` assembly instruction, which copies the top 8 bytes of the stack into a 64-bit register (%rdx) and then deallocates them by incrementing %rsp, noting that the data is not actually erased from memory until overwritten.",
+    "main_text": "Pop operation: The instruction is `popq %rdx`. This copies the top 8 bytes of the stack to register %rdx and then deallocates them. This is equivalent to: `movq (%rsp),%rdx` (save 8 bytes from address %rsp to register %rdx) and `addq $8,%rsp` (increment %rsp by 8). Note: pop does not erase the data on the stack; it simply moves the %rsp. The next push will overwrite the old value. The visualization shows the value ($1111 2222 3333 4444$) being moved from the stack to %rdx, and %rsp moving from $0x7fffffff0$ to $0x7fffffff8$.",
+    "notes_text": "Like pushq, popq is a combined operation. The crucial point is that stack deallocation is a logical operation via the pointer (%rsp), not a physical memory clear.",
+    "keywords": [
+      "Pop",
+      "popq",
+      "%rdx",
+      "Copy",
+      "8 bytes",
+      "Stack",
+      "%rsp",
+      "increment",
+      "movq",
+      "addq",
+      "Deallocate",
+      "Overwrite",
+      "LIFO"
+    ]
+  },
+  {
+    "deck_name": "CS356Unit06_AssemblyStack",
+    "slide_number": 6,
+    "chunk_index": 0,
+    "title": "Direct Stack Manipulation for Local Variables (Allocation/Deallocation)",
+    "summary": "This slide discusses how the stack pointer, %rsp, is directly manipulated using `subq` and `addq` for allocating and deallocating blocks of memory larger than 8 bytes, which is common for local variables like buffers or arrays in functions.",
+    "main_text": "Direct manipulation of %rsp is used to allocate more than 8 bytes on the stack, such as for a buffer (large array of data) or many local variables. The compiler can manage the stack without `pushq`/`popq` by: Decrementing %rsp (to allocate) and Incrementing %rsp (to deallocate). When a function completes, its local variables must be deallocated from the stack.\n\nC Code Example: `int some_procedure() { char buffer[24]; buffer[0] = 'A'; ... }`\n\nAssembly Implementation (excerpt):\n`some_procedure:`\n`// prologue: allocate 24 bytes`\n`subq $24,%rsp`\n`// write over the first byte`\n`movb $65,(%rsp)`\n`...`\n`// epilogue: deallocate 24 bytes`\n`addq $24, %rsp`\n`ret`",
+    "notes_text": "This manual stack adjustment is the typical method used by compilers to create space for a function's stack frame components (like local variables) efficiently.",
+    "keywords": [
+      "Direct Manipulation",
+      "%rsp",
+      "subq",
+      "addq",
+      "Allocate",
+      "Deallocate",
+      "Buffer",
+      "Local Variables",
+      "Arrays",
+      "Compiler Management",
+      "Prologue",
+      "Epilogue"
+    ]
+  },
+  {
+    "deck_name": "CS356Unit06_AssemblyStack",
+    "slide_number": 7,
+    "chunk_index": 0,
+    "title": "Example: Reading an Integer (scanf) and Stack Usage",
+    "summary": "This example shows the C and assembly code for a function that reads an integer using `scanf`, illustrating how the compiler uses `subq` to allocate stack space for a local variable and `leaq` to get its address for the system call.",
+    "main_text": "C Code Example: `int read_int() { int temp; scanf(\"%d\", &temp); return temp; }`\n\nAssembly Code (read_int):\n`subq $24, %rsp` (Allocate 24 bytes on the stack)\n`leaq 12(%rsp), %rsi` (Calculate address of 'temp' at offset 12 from %rsp and load into %rsi for scanf)\n`leaq .LC0(%rip), %rdi` (Load address of format string \"%d\" into %rdi for scanf)\n`movl $0, %eax`\n`call scanf@PLT`\n`movl 12(%rsp), %eax` (Load value of 'temp' from stack into %eax for return)\n`addq $24, %rsp` (Deallocate 24 bytes)\n`ret`\n\nThe compiler allocates **24 bytes**, but only uses **4 bytes** (at offset 12) for the 4-byte `int temp` variable.",
+    "notes_text": "The allocation of 24 bytes, more than the 4 bytes needed for 'temp', is often due to stack alignment requirements (e.g., 16-byte alignment on x86-64 before a call instruction). The `leaq` instruction is key to obtaining the stack address of a local variable for functions like `scanf` that require a memory address (using the `&` operator).",
+    "keywords": [
+      "scanf",
+      "read_int",
+      "subq",
+      "leaq",
+      "%rsp",
+      "%rsi",
+      "%rdi",
+      "%eax",
+      "Local Variable",
+      "temp",
+      "Stack Allocation",
+      "Return Value"
+    ]
+  },
+  {
+    "deck_name": "CS356Unit06_AssemblyStack",
+    "slide_number": 8,
+    "chunk_index": 0,
+    "title": "Example: Reading and Echoing a String (scanf/printf)",
+    "summary": "This example demonstrates allocating a stack buffer for a string in assembly, using `scanf` to read input and `printf` to echo it, showing direct manipulation of %rsp to allocate the 16-byte stack space for the 10-byte buffer.",
+    "main_text": "C Code Example: `void echo_str() { char buffer[10]; scanf(\"%s\", buffer); printf(\"echo: %s\\n\", buffer); }`\n\nAssembly Code (echo_str):\n`subq $16, %rsp` (Allocate 16 bytes)\n`leaq 6(%rsp), %rsi` (Load address of 'buffer' at offset 6 into %rsi for scanf)\n`leaq .LC0(%rip), %rdi`\n`movl $0, %eax`\n`call scanf@PLT`\n`leaq 6(%rsp), %rsi` (Reload address of 'buffer' into %rsi for printf)\n`leaq .LC1(%rip), %rdi`\n`movl $0, %eax`\n`call printf@PLT`\n`addq $16, %rsp` (Deallocate 16 bytes)\n`ret`\n\nThe compiler allocates **16 bytes**, using **10 bytes** (at offset 6) for the `char buffer[10]` variable. The diagram shows the string \"Trojans\" stored byte-by-byte in the allocated buffer on the stack.",
+    "notes_text": "The buffer address is calculated using `leaq` and passed in %rsi (the second argument register in the x86-64 ABI). The need to reload the address for `printf` after the `scanf` call is due to %rsi being a caller-saved register, meaning `scanf` could have modified it.",
+    "keywords": [
+      "String",
+      "Buffer",
+      "scanf",
+      "printf",
+      "subq",
+      "leaq",
+      "%rsp",
+      "%rsi",
+      "Stack Allocation",
+      "String Storage",
+      "Caller-Saved Register"
+    ]
+  },
+  {
+    "deck_name": "CS356Unit06_AssemblyStack",
+    "slide_number": 9,
+    "chunk_index": 0,
+    "title": "Stack and Procedure Calls",
+    "summary": "This slide transitions to the role of the stack in procedure (function) calls by first recalling the function of the Instruction Pointer (%rip) in fetching the next instruction.",
+    "main_text": "Stack & Procedure Calls. Remember: Fetching the next CPU instr. %rip is the address of the next instruction.",
+    "notes_text": "",
+    "keywords": [
+      "Stack",
+      "Procedure Calls",
+      "%rip",
+      "Instruction Pointer",
+      "CPU",
+      "Instruction Fetch"
+    ]
+  },
+  {
+    "deck_name": "CS356Unit06_AssemblyStack",
+    "slide_number": 10,
+    "chunk_index": 0,
+    "title": "CPU Register and Instruction Fetch Overview",
+    "summary": "This slide provides a high-level view of the CPU's registers and the process of fetching the next instruction from memory using the Instruction Pointer (%rip).",
+    "main_text": "Registers: Examples of 64-bit register values are shown for %rax, %rbx, %rcx, %rdx, and %rip. The %rip register contains the address of the next instruction ($0x0000000000400050$). The Memory controller/Bus Interface is used to fetch the instruction from memory at the address specified by %rip. The Arithmetic Logic Unit (ALU) implements operations on registers (e.g., +, -, &, …).",
+    "notes_text": "This contextualizes how control flow works, which is necessary before explaining the mechanics of a function call.",
+    "keywords": [
+      "CPU",
+      "Registers",
+      "%rax",
+      "%rip",
+      "Instruction Fetch",
+      "Memory Controller",
+      "ALU",
+      "Instruction Address"
+    ]
+  },
+  {
+    "deck_name": "CS356Unit06_AssemblyStack",
+    "slide_number": 11,
+    "chunk_index": 0,
+    "title": "Mechanism of Procedure Calls",
+    "summary": "This slide defines the goal of a procedure call in assembly: to temporarily set %rip to the procedure's starting address and, upon completion, to restore %rip to the caller's next instruction (the return address).",
+    "main_text": "Procedure Calls: To start a procedure (an assembly function), we want %rip (address of next instr.) == address of procedure code. After it, we want %rip == address of next instr. of caller (the return address).\n\nC Code Example: `int caller(int x) { int res = avg(x,4); res = res + 1; ... }`\n\nAssembly Example:\nCaller:\n`113b callq avg` (function call)\n`1140 addl $1,%rax` (next instruction, the desired return location)\n\nCallee (avg):\n`1125 ...`\n`1130 ret` (returns to the desired return location)",
+    "notes_text": "The core problem of a procedure call is saving the return point so execution can seamlessly resume after the procedure completes. The return address is the address of the instruction immediately following the `callq` instruction.",
+    "keywords": [
+      "Procedure Calls",
+      "%rip",
+      "Address of Procedure",
+      "Return Address",
+      "callq",
+      "ret",
+      "Caller",
+      "Callee",
+      "Control Flow"
+    ]
+  },
+  {
+    "deck_name": "CS356Unit06_AssemblyStack",
+    "slide_number": 12,
+    "chunk_index": 0,
+    "title": "Handling Nested Procedure Calls (LIFO Requirement)",
+    "summary": "This slide demonstrates that nested procedure calls require a Last-In-First-Out (LIFO) mechanism to ensure that control flow correctly resumes the most recent caller after each return.",
+    "main_text": "Nested Procedure Calls: We want to resume execution of the most recent caller! The nested structure of function calls (e.g., `caller` calls `avg`, and `avg` calls `div2`) mandates a mechanism that retrieves the return addresses in reverse order of the calls.\n\nC Code Example (Nested):\n`caller` -> `avg` -> `div2`\n\nAssembly Example:\nCaller:\n`113b callq avg` (1st func. call)\n`1140 addl $1,%rax` (1st return location)\n\navg:\n`1127 callq div2` (2nd func. call)\n`1129 ret` (2nd return location)\n\ndiv2:\n`1132 ret` (returns to 2nd return location)",
+    "notes_text": "The LIFO policy of the stack is the natural solution for this problem, as the last function called is the first one to return.",
+    "keywords": [
+      "Nested Calls",
+      "LIFO",
+      "Resume Execution",
+      "Return Address Order",
+      "callq",
+      "ret",
+      "Caller",
+      "Callee"
+    ]
+  },
+  {
+    "deck_name": "CS356Unit06_AssemblyStack",
+    "slide_number": 13,
+    "chunk_index": 0,
+    "title": "Stack Implementation of Procedure Calls and Returns",
+    "summary": "This slide details how x86-64 uses the stack to manage procedure calls: `call` pushes the return address onto the stack and jumps, while `ret` pops the address from the stack and jumps back to it, confirming the LIFO policy for nested calls.",
+    "main_text": "Procedure Calls & Returns: x86-64 uses the stack to save the return address!\n\n`call f`: Push %rip (address of next instruction) to the stack, then write $f$ (address of the procedure) to %rip (Instruction Pointer).\n\n`ret`: Pop 8 bytes from the stack, write them to %rip.\n\nThe **LIFO policy** of the stack allows nested function calls, as required to resume execution of the most recent caller.",
+    "notes_text": "The `call` instruction is essentially a combined `pushq <return address>; jmp <function address>` operation, and `ret` is a combined `popq %rip; jmp %rip` operation.",
+    "keywords": [
+      "call",
+      "ret",
+      "Return Address",
+      "Stack",
+      "Push",
+      "Pop",
+      "%rip",
+      "Procedure Address",
+      "LIFO Policy",
+      "Nested Calls"
+    ]
+  },
+  {
+    "deck_name": "CS356Unit06_AssemblyStack",
+    "slide_number": 14,
+    "chunk_index": 0,
+    "title": "Procedure Call Sequence 1a: Initial State",
+    "summary": "This is the initial state before executing a `call avg` instruction, showing the stack pointer (%rsp) at $0x7fffffff8$, and the Instruction Pointer (%rip) pointing to the `call avg` instruction's return address at $0x40020$.",
+    "main_text": "Example: Procedure Call Sequence 1a - Initial conditions: About to execute the `call avg` instruction. Current top of stack (%rsp) is at $0x7fffffff8$. The next instruction (the return address) is `addl $1,%rax` at address $0x40020$. The values in registers %rdi (8) and %rsi (4) are the arguments for `avg(8, 4)` ($0x0000000000000008$ and $0x0000000000000004$).",
+    "notes_text": "This slide sets the stage for the four-step call/return demonstration.",
+    "keywords": [
+      "Procedure Call Sequence",
+      "Initial State",
+      "call avg",
+      "%rsp",
+      "%rip",
+      "Return Address",
+      "Registers",
+      "%rdi",
+      "%rsi"
+    ]
+  },
+  {
+    "deck_name": "CS356Unit06_AssemblyStack",
+    "slide_number": 15,
+    "chunk_index": 0,
+    "title": "Procedure Call Sequence 1b: Executing 'call avg'",
+    "summary": "This slide demonstrates the effect of the `call avg` instruction: the return address ($0x40020$) is pushed onto the stack, %rsp is decremented to $0x7fffffff0$, and %rip is updated to the procedure's start address ($0x40180$).",
+    "main_text": "Example: Procedure Call Sequence 1b - `call` operation (i.e., push return address & jump):\n1. Decrement stack pointer (%rsp) by 8. (%rsp moves from $0x7fffffff8$ to $0x7fffffff0$).\n2. Push RA ($0x40020$) onto stack at the new %rsp address.\n3. Update PC (%rip) to start of procedure ($0x40180$).\n\nAfter the call, %rsp is $0x7fffffff0$ and the stack holds $0x0000000000040020$ (the return address).",
+    "notes_text": "This step is the core mechanism of transferring control to a function while ensuring a path back.",
+    "keywords": [
+      "Procedure Call Sequence",
+      "call avg",
+      "Push Return Address",
+      "Decrement %rsp",
+      "Update %rip",
+      "Stack State",
+      "Jump"
+    ]
+  },
+  {
+    "deck_name": "CS356Unit06_AssemblyStack",
+    "slide_number": 16,
+    "chunk_index": 0,
+    "title": "Procedure Call Sequence 1c: Executing the Procedure Code",
+    "summary": "This slide shows the state after the called procedure (`avg`) has executed its logic, with the return value (6) placed in %rax, but before the `ret` instruction is executed.",
+    "main_text": "Example: Procedure Call Sequence 1c - Execute the code for the procedure. The procedure code executes, calculating the average of the arguments (8 and 4) to be 6. At the end, the return value (6, or $0x0000000000000006$) should be in %rax/%eax. %rsp remains at $0x7fffffff0$, and %rip is at $0x40180$ (pointing to the `ret` instruction within the `avg` procedure).",
+    "notes_text": "The procedure code execution only modifies general-purpose registers (like %rax for the return value) and potentially the stack for local variables (not shown here), but the return address is preserved at the top of the stack.",
+    "keywords": [
+      "Procedure Execution",
+      "Return Value",
+      "%rax",
+      "avg",
+      "ret instruction",
+      "Intermediate State"
+    ]
+  },
+  {
+    "deck_name": "CS356Unit06_AssemblyStack",
+    "slide_number": 17,
+    "chunk_index": 0,
+    "title": "Procedure Call Sequence 1d: Executing 'ret'",
+    "summary": "This slide demonstrates the effect of the `ret` instruction: the return address ($0x40020$) is retrieved from the stack and written to %rip, and %rsp is incremented back to $0x7fffffff8$.",
+    "main_text": "Example: Procedure Call Sequence 1d - `ret` operation (i.e., pop return address into %rip):\n1. Retrieve RA ($0x40020$) from stack at (%rsp).\n2. Put it in the PC (%rip).\n3. Increment the stack pointer (%rsp) by 8. (%rsp moves from $0x7fffffff0$ to $0x7fffffff8$).\n\nAfter `ret`, %rip is set to the return address $0x40020$, and %rsp is restored to its value before the `call`.",
+    "notes_text": "The `ret` instruction uses the address pointed to by %rsp as the target for the jump and performs the stack cleanup by incrementing %rsp.",
+    "keywords": [
+      "Procedure Call Sequence",
+      "ret",
+      "Pop Return Address",
+      "Increment %rsp",
+      "Restore %rip",
+      "Stack Cleanup",
+      "Jump"
+    ]
+  },
+  {
+    "deck_name": "CS356Unit06_AssemblyStack",
+    "slide_number": 18,
+    "chunk_index": 0,
+    "title": "Procedure Call Sequence 1e: Execution Resumes in Caller",
+    "summary": "This final step in the call sequence shows execution resuming at the instruction following the original `call avg`, with the return value successfully transferred via %rax, ready for the caller to continue its work.",
+    "main_text": "Example: Procedure Call Sequence 1e - Execution resumes fetching the next instruction after the procedure call. %rip is $0x40020$, pointing to the `addl $1,%rax` instruction. Note: %rax and other registers have changed! The return value in %rax (6) will be used by the `addl $1,%rax` instruction.",
+    "notes_text": "The seamless transition of control flow is achieved by the combined push/pop operations of `call` and `ret` using the stack.",
+    "keywords": [
+      "Procedure Call Sequence",
+      "Execution Resumes",
+      "Next Instruction",
+      "%rip",
+      "%rax",
+      "Return Value Transfer"
+    ]
+  },
+  {
+    "deck_name": "CS356Unit06_AssemblyStack",
+    "slide_number": 19,
+    "chunk_index": 0,
+    "title": "Nested Call Example: Tracing Stack and Pointers",
+    "summary": "This slide provides a more complex example of nested calls (`call SUB1` followed by `call SUB2`), tracing the values of the stack, %rsp, and %rip at four different timepoints to illustrate the LIFO mechanism in a real-world scenario.",
+    "main_text": "Example: Tracing the values of the stack, %rsp, and %rip at various timestamps for the following nested code structure.\n\nCode Sequence:\n$0x40015$ `call SUB1`\n$0x4001A$ `...` (Return point 1)\n\n$0x40200$ `SUB1: ...`\n`call SUB2`\n$0x40208$ `...` (Return point 2)\n`ret`\n\n$0x40380$ `SUB2: ...`\n`ret`\n\n**State 1 (Before SUB1 Call):** %rip = $0x40015$, %rsp = $0x7fffffff8$, Stack is empty (above %rsp).\n\n**State 2 (After SUB1 Call, Before SUB2 Call):** %rip = $0x40200$ (Start of SUB1), %rsp = $0x7fffffff0$. Stack has RA1 ($0x4001A$) at $0x7fffffff0$.\n\n**State 3 (After SUB2 Call, In SUB2):** %rip = $0x40380$ (Start of SUB2), %rsp = $0x7fffffee8$. Stack has RA2 ($0x40208$) at $0x7fffffee8$ and RA1 ($0x4001A$) at $0x7fffffff0$.\n\n**State 4 (After SUB2 Return, In SUB1):** %rip = $0x40208$ (Return to SUB1), %rsp = $0x7fffffff0$. Stack has RA1 ($0x4001A$) at $0x7fffffff0$. RA2 has been popped.",
+    "notes_text": "This tracing exercise visually confirms the LIFO behavior: RA2 is pushed after RA1 and popped before RA1, guaranteeing the correct flow back to the correct caller.",
+    "keywords": [
+      "Nested Calls",
+      "Stack Trace",
+      "%rsp",
+      "%rip",
+      "Return Address",
+      "SUB1",
+      "SUB2",
+      "LIFO",
+      "Stack State"
+    ]
+  },
+  {
+    "deck_name": "CS356Unit06_AssemblyStack",
+    "slide_number": 20,
+    "chunk_index": 0,
+    "title": "Procedure Call Conventions",
+    "summary": "This slide introduces the conventions used in x86-64 assembly for passing arguments to procedures and returning values, a critical part of the ABI.",
+    "main_text": "Procedure Call Conventions. This section will cover the protocol used by the caller and callee for passing arguments and the return value.",
+    "notes_text": "",
+    "keywords": [
+      "Procedure Call Conventions",
+      "ABI",
+      "x86-64",
+      "Arguments",
+      "Return Value",
+      "Protocol"
+    ]
+  },
+  {
+    "deck_name": "CS356Unit06_AssemblyStack",
+    "slide_number": 21,
+    "chunk_index": 0,
+    "title": "x86-64 Argument and Return Value Conventions",
+    "summary": "This slide details the x86-64 ABI convention for passing arguments via registers (up to six) for speed and the stack for additional arguments, and for using the %rax register for the return value.",
+    "main_text": "Arguments and Return Value: Caller and callee use this protocol.\n\n**Arguments (up to 6):** The first six arguments are passed using registers %rdi, %rsi, %rdx, %rcx, %r8, %r9 (very fast).\n\n**Additional Arguments (7+):** Additional arguments are pushed onto the stack in reversed order (slower).\n\n**Return Value:** The return value is saved into %rax.\n\nExample: `int avg(int a, int b)`: `a` (1st arg) uses %edi, `b` (2nd arg) uses %esi. The result returns in %eax.",
+    "notes_text": "The use of registers for the first six arguments is a major optimization in x86-64 compared to older architectures that relied heavily on the stack for all argument passing.",
+    "keywords": [
+      "Arguments",
+      "Return Value",
+      "Registers",
+      "%rdi",
+      "%rsi",
+      "%rdx",
+      "%rcx",
+      "%r8",
+      "%r9",
+      "%rax",
+      "Stack",
+      "ABI",
+      "Fast",
+      "Slow"
+    ]
+  },
+  {
+    "deck_name": "CS356Unit06_AssemblyStack",
+    "slide_number": 22,
+    "chunk_index": 0,
+    "title": "Example: Passing Many Arguments (Registers and Stack)",
+    "summary": "This example shows the C and assembly code for calling a function with eight arguments, illustrating how the first six arguments use registers and the last two (7 and 8) are pushed onto the stack in reverse order.",
+    "main_text": "Example: Calling `f1(1, 2, 3, 4, 5, 6, 7, 8)` requires passing arguments via both registers and the stack. At point (1) (before the `call f1`), the 7th and 8th arguments are passed via the stack.\n\nCaller Assembly (Setup):\n`pushq $8` (Argument 8 is pushed first)\n`pushq $7` (Argument 7 is pushed second, making it 8 bytes closer to %rsp)\n`movl $6, %r9d` (Arg 6)\n... (Args 1-5 in %edi, %esi, %edx, %ecx, %r8d)\n`call f1`\n`addq $16, %rsp` (Clean up the 16 bytes for Args 7 & 8 after return)\n\nCallee Assembly (Access):\n`addl 8(%rsp), %eax` (Accesses Argument 7, which is 8 bytes from %rsp, after the return address)\n`addl 16(%rsp), %eax` (Accesses Argument 8, which is 16 bytes from %rsp)",
+    "notes_text": "The stack addresses for arguments 7 and 8 are offsets relative to the %rsp *after* the return address has been pushed by the `call` instruction. Argument 7 is at $8(\%rsp)$ and Argument 8 is at $16(\%rsp)$. The caller is responsible for cleaning up the stack arguments using `addq $16, %rsp`.",
+    "keywords": [
+      "Many Arguments",
+      "Stack Arguments",
+      "Reverse Order",
+      "Register Arguments",
+      "Argument Access",
+      "Stack Cleanup",
+      "%rsp Offset",
+      "Return Address"
+    ]
+  },
+  {
+    "deck_name": "CS356Unit06_AssemblyStack",
+    "slide_number": 23,
+    "chunk_index": 0,
+    "title": "Caller-Saved and Callee-Saved Registers",
+    "summary": "This slide explains the convention for preserving register values during a procedure call, dividing registers into caller-saved (volatile) and callee-saved (non-volatile) to avoid unnecessary stack operations.",
+    "main_text": "Caller-Saved and Callee-Saved Registers: Caller and Callee share the same registers! The convention exists to avoid having the caller push/pop all registers to the stack before/after every call, which would be slow.\n\n**Callee-Saved Registers:** Values of %rsp, %rbp, %rbx, %r12 to %r15 must be **preserved by the callee**. The callee must either not modify them or save them to the stack at the beginning (prologue) and restore them at the end (epilogue) of its execution.\n\n**Caller-Saved Registers:** Values of all other registers can be **overwritten by the callee**. To preserve them, the caller must save them to callee-saved registers or push them to the stack before the call and pop them after the return.",
+    "notes_text": "The choice of which registers are callee-saved is a crucial part of the ABI, designed to optimize common scenarios. Callee-saved registers are often used for holding values that need to persist across multiple function calls.",
+    "keywords": [
+      "Caller-Saved Registers",
+      "Callee-Saved Registers",
+      "Preservation",
+      "Stack Operations",
+      "ABI",
+      "%rsp",
+      "%rbp",
+      "%rbx",
+      "Volatile",
+      "Non-Volatile",
+      "Prologue",
+      "Epilogue"
+    ]
+  },
+  {
+    "deck_name": "CS356Unit06_AssemblyStack",
+    "slide_number": 24,
+    "chunk_index": 0,
+    "title": "Example: Callee-Saved Register Use (%rbx)",
+    "summary": "This example shows the `echo_str` function revised to save the address of the local buffer into the callee-saved register %rbx, ensuring the address persists across the `scanf` call, which is allowed to overwrite caller-saved registers like %rsi.",
+    "main_text": "Example: The function `echo_str` (C: `scanf(\"%s\", buffer); printf(\"echo: %s\\n\", buffer);`) passes the same argument `buffer` to both `scanf` and `printf`.\n\nAssembly:\n**Prologue**\n`pushq %rbx` (Save the caller’s value of %rbx, a callee-saved register)\n`subq $16, %rsp` (Allocate buffer)\n`leaq 6(%rsp), %rbx` (Save the address of `buffer` in the callee-saved register %rbx)\n\n**Body**\n`movq %rbx, %rsi` (Copy buffer address to %rsi for `scanf`)\n`call scanf@PLT` (%rsi might be changed by `scanf`)\n`movq %rbx, %rsi` (Copy buffer address from the safe %rbx back to %rsi for `printf`)\n`call printf@PLT`\n\n**Epilogue**\n`addq $16, %rsp` (Deallocate buffer)\n`popq %rbx` (Restore the caller’s value of %rbx)\n`ret`",
+    "notes_text": "This demonstrates a practical use of a callee-saved register to hold a pointer that must remain constant across calls to other functions (callees). The prologue/epilogue structure handles the preservation and restoration of the callee-saved register.",
+    "keywords": [
+      "Callee-Saved Register",
+      "%rbx",
+      "Prologue",
+      "Epilogue",
+      "Save and Restore",
+      "buffer address",
+      "scanf",
+      "printf",
+      "leaq",
+      "movq"
+    ]
+  },
+  {
+    "deck_name": "CS356Unit06_AssemblyStack",
+    "slide_number": 25,
+    "chunk_index": 0,
+    "title": "Stack Frames and Their Components",
+    "summary": "This slide summarizes all the types of data stored on the stack during a procedure call and introduces the concept of a 'stack frame' as a dedicated region on the stack for each active function.",
+    "main_text": "Stack Frames: The stack is used to save: caller-saved registers (by caller), arguments after the 6th (by caller), the return address (by the call instruction/caller), callee-saved registers (by callee), and local variables (by the callee). All of this data is deallocated after a function call returns. At any time, the stack contains a **stack frame** for each active procedure call (i.e., function that hasn't returned yet) with its data.",
+    "notes_text": "The diagram visually decomposes the stack into two frames: the 'Frame for calling function P' (caller's frame) and the 'Frame for executing function Q' (callee's frame), illustrating the LIFO nature of procedure execution.",
+    "keywords": [
+      "Stack Frames",
+      "Active Procedure",
+      "Return Address",
+      "Saved Registers",
+      "Local Variables",
+      "Arguments",
+      "Deallocation",
+      "LIFO",
+      "Caller Frame",
+      "Callee Frame",
+      "Argument Build Area"
+    ]
+  },
+  {
+    "deck_name": "CS356Unit06_AssemblyStack",
+    "slide_number": 26,
+    "chunk_index": 0,
+    "title": "Accessing Data in Stack Frames by Offset",
+    "summary": "This slide explains how data within a stack frame (local variables or stack arguments) is accessed using an offset relative to the stack pointer %rsp, and provides a full assembly example of caller and callee frame management.",
+    "main_text": "Accessing Data in Stack Frames: Usually, an **offset** is added to %rsp to select the desired data on the stack (local variables or arguments). For example, if a callee has $24$ bytes of local variables and $8$ bytes for a saved %rbx, the offset for the 7th argument is $24 + 8 + 8 = 40$ bytes (skipping local vars, saved %rbx, and the return address).\n\n**Caller Assembly (Management):**\n`pushq $8` and `pushq $7` for arguments 7 and 8.\n`call f1`\n`addq $16, %rsp` to clean up args 7-8.\n\n**Callee Assembly (Access):**\n`pushq %rbx` (Save callee-saved register)\n`subq $24, %rsp` (Allocate local buffer)\n`addl 40(%rsp), %eax` (Read Argument 7, 40 bytes from %rsp)\n`addl 48(%rsp), %eax` (Read Argument 8, 48 bytes from %rsp)\n`addq $24, %rsp` and `popq %rbx` (Epilogue clean-up)",
+    "notes_text": "The offsets are calculated from the current %rsp, which points to the top of the callee's frame. Positive offsets move toward higher addresses, accessing the caller's frame or the stack-passed arguments.",
+    "keywords": [
+      "Accessing Stack Data",
+      "Offset",
+      "%rsp",
+      "Local Variables",
+      "Stack Arguments",
+      "Caller Frame",
+      "Callee Frame",
+      "addl offset(%rsp)",
+      "Stack Management"
+    ]
+  },
+  {
+    "deck_name": "CS356Unit06_AssemblyStack",
+    "slide_number": 27,
+    "chunk_index": 0,
+    "title": "Local Variables: Stack vs. Registers",
+    "summary": "This slide outlines the conditions under which local variables are allocated on the stack versus being optimized into CPU registers, based on address requirements and the number of available registers.",
+    "main_text": "Local Variables: Stack vs Registers. For simple integers/pointers, the compiler can optimize code by using a register rather than allocating the variable on the stack (`int y = 3` in a register). This is faster.\n\nLocal variables **MUST** be allocated on the stack if:\n1. No free registers (too many locals).\n2. The `&` (address-of) operator is used, requiring an actual memory address (e.g., `scanf(\"%d\", &x)`). The variable must be addressable.\n3. For arrays (since arrays always have an address).",
+    "notes_text": "Compilers prioritize registers for performance, but certain language features (like taking a variable's address) force allocation on the stack, which is memory-addressable.",
+    "keywords": [
+      "Local Variables",
+      "Stack vs Registers",
+      "Optimization",
+      "Address-of Operator",
+      "&",
+      "Arrays",
+      "Memory Allocation",
+      "Register Pressure",
+      "Compiler"
+    ]
+  }
+]
