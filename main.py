@@ -53,29 +53,38 @@ class Question(BaseModel):
 # ========== API Endpoints ==========
 # Render needs to check that the connection is valid
 
-# Load pandas df
-@app.on_event("startup")
-async def load_slide_data():
-    print("📚 Loading slide data...")
-    df = pd.read_json("data/CS356_data.jsonl", lines=True)
-    app.state.slides_df = df
-    print(f"✅ Slides loaded: {df.shape[0]} rows")
-
 # Precompute slide embeddings
 @app.on_event("startup")
 async def prepare_slide_embeddings():
     df = pd.read_json("data/CS356_data.jsonl", lines=True)
     app.state.slides_df = df
-    
+
+    EMBEDDING_CACHE = "slide_embeddings.npy"
+
+    # If cache exists -> load it
+    if os.path.exists(EMBEDDING_CACHE):
+        print("⚡ Loading cached slide embeddings...")
+        app.state.slide_embeddings = np.load(EMBEDDING_CACHE)
+        print("Embeddings loaded from cache")
+        return
+
+    # Otherwise generate once
+    print("Generating slide embeddings (first run only)...")
     slide_texts = (
         df["title"] + " " +
         df["summary"] + " " +
-        df["main_text"]
+        df["main_text"] + " " +
+        df["keywords"].apply(lambda kws: " ".join(kws) if isinstance(kws, list) else "") + " " +
+        df["deck_name"] + " " +
+        df["slide_number"].astype(str) + " "
     ).tolist()
-    
+
     embeddings = model.encode(slide_texts, normalize_embeddings=True)
+
+    # Save embeddings to disk
+    np.save(EMBEDDING_CACHE, embeddings)
     app.state.slide_embeddings = embeddings
-    print("✅ Slide embeddings ready")
+    print("✅ Embeddings generated and cached to slide_embeddings.npy")
 
 # Health check endpoint
 @app.get("/health")
@@ -88,30 +97,30 @@ async def health():
 async def ask_question(q: Question):
     print(f"New question from {q.user}: {q.text}")
     questions.append(q.dict())
-    # add new question to list
+
+    # Broadcast question for professor view
     disconnected = []
     for client in clients:
         try:
             await client.send_json({"event": "new_question", "data": q.dict()})
-        except Exception as e:
-            print(f"Error sending to client: {e}")
+        except Exception:
             disconnected.append(client)
+
     # handling user connectinos
     for client in disconnected:
         if client in clients:
             clients.remove(client)
-    
+
     print(f"📊 Total: {len(questions)} questions, {len(clients)} clients")
-    
-    # Get slide recommendation
+
+    # Generate recommendation ONLY for this user
     recommendation = recommend_slide(q.text)
 
-    await client.send_json({
-    "event": "slide_recommendation",
-    "data": recommendation
-    })
+    return {
+        "status": "received",
+        "slide_recommendation": recommendation
+    }
 
-    return {"status": "received"}
 
 # Text Cleaning Helper Function
 def clean_text(text: str) -> str:
@@ -123,12 +132,38 @@ def clean_text(text: str) -> str:
 
 # 
 # Recommend slides based on the query using simple keyword matching
-# async def recommend_slide(query: str):
-#     # Clean and preprocess input using Regex
-#     # Match keywords to slides in the datafram
-    
-    
+def recommend_slide(query: str):
+    # Clean and preprocess input using Regex
+    # Match keywords to slides in the datafram
+    df = app.state.slides_df
+    slide_embeddings = app.state.slide_embeddings
 
+    # Clean question
+    processed_query = clean_text(query)
+
+    # Encode question
+    query_embedding = model.encode([processed_query], normalize_embeddings=True)[0]
+
+    # Cosine similarity
+    similarities = np.dot(slide_embeddings, query_embedding)
+
+    # Get top 3 indices
+    top_indices = np.argsort(similarities)[-3:][::-1]
+
+    recommendations = []
+
+    for idx in top_indices:
+        slide = df.iloc[idx]
+        recommendations.append({
+            "deck_name": slide["deck_name"],
+            "slide_number": int(slide["slide_number"]),
+            "title": slide["title"],
+            "score": float(similarities[idx]),
+            "summary": slide.get("summary", ""),
+            "keywords": slide.get("keywords", [])
+        })
+
+    return recommendations
 
 
 # Websockets for real time data transfer to professor.html
@@ -309,7 +344,5 @@ async def serve_professor():
 # ========== Run Server ==========
 if __name__ == "__main__":
     import uvicorn
-    df = app.state.slides_df
-    print(df.head(10))
     port = int(os.getenv("PORT", 8000))
     uvicorn.run(app, host="0.0.0.0", port=port)

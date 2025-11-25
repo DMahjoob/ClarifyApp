@@ -1,10 +1,12 @@
 fastapi
 uvicorn[standard]
 python-dotenv
-groq
-pydantic
-nltk
 pandas
-torch
-sentence-transformers
 numpy
+nltk
+sentence-transformers
+torch
+scikit-learn
+tqdm
+websockets
+groq
