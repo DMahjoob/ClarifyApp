@@ -60,7 +60,6 @@
       display: flex;
       align-items: center;
       justify-content: center;
-
       z-index: 5;
       appearance: none;
     }
@@ -81,6 +80,61 @@
       50% { transform: scale(1.08); }
       100% { transform: scale(1); }
     }
+
+    /* Recommendation styles */
+    #recommendations {
+      margin-top: 30px;
+      padding: 20px;
+      background: #f5f5f5;
+      border-radius: 8px;
+      display: none;
+    }
+    #recommendations.visible {
+      display: block;
+    }
+    #recommendations h3 {
+      margin-top: 0;
+      color: #333;
+    }
+    .slide-card {
+      background: white;
+      padding: 15px;
+      margin: 10px 0;
+      border-radius: 6px;
+      border-left: 4px solid #4CAF50;
+      box-shadow: 0 2px 4px rgba(0,0,0,0.1);
+    }
+    .slide-card h4 {
+      margin: 0 0 8px 0;
+      color: #2c5f2d;
+    }
+    .slide-info {
+      font-size: 14px;
+      color: #666;
+      margin: 5px 0;
+    }
+    .slide-score {
+      display: inline-block;
+      background: #e8f5e9;
+      padding: 3px 8px;
+      border-radius: 4px;
+      font-size: 12px;
+      font-weight: bold;
+      color: #2e7d32;
+    }
+    .keywords {
+      margin-top: 8px;
+      font-size: 13px;
+    }
+    .keyword-tag {
+      display: inline-block;
+      background: #e3f2fd;
+      padding: 2px 8px;
+      margin: 2px;
+      border-radius: 3px;
+      font-size: 12px;
+      color: #1565c0;
+    }
   </style>
 </head>
 <body>
@@ -99,11 +153,19 @@
   
   <p id="status"></p>
 
+  <!-- Recommendations Section -->
+  <div id="recommendations">
+    <h3>📚 Recommended Slides</h3>
+    <div id="recommendationsList"></div>
+  </div>
+
   <script>
     const micBtn = document.getElementById("micBtn");
     const textArea = document.getElementById("text");
     const statusEl = document.getElementById("status");
     const micIcon = document.getElementById("micIcon");
+    const recommendationsDiv = document.getElementById("recommendations");
+    const recommendationsList = document.getElementById("recommendationsList");
 
     const SpeechRecognition =
       window.SpeechRecognition || window.webkitSpeechRecognition;
@@ -163,11 +225,61 @@
       });
 
     } else {
-      // no speech support
       micBtn.disabled = true;
       micBtn.title = "Voice input not supported in this browser";
       statusEl.innerText = "⚠️ Voice input not supported in this browser.";
       statusEl.style.color = "orange";
+    }
+
+    function displayRecommendations(recommendations) {
+      if (!recommendations || recommendations.length === 0) {
+        recommendationsDiv.classList.remove("visible");
+        return;
+      }
+
+      recommendationsList.innerHTML = "";
+
+      recommendations.forEach((slide, index) => {
+        const card = document.createElement("div");
+        card.className = "slide-card";
+
+        const title = document.createElement("h4");
+        title.textContent = `${index + 1}. ${slide.title}`;
+        card.appendChild(title);
+
+        const deckInfo = document.createElement("div");
+        deckInfo.className = "slide-info";
+        deckInfo.innerHTML = `
+          <strong>Deck:</strong> ${slide.deck_name} | 
+          <strong>Slide:</strong> ${slide.slide_number} | 
+          <span class="slide-score">Match: ${(slide.score * 100).toFixed(1)}%</span>
+        `;
+        card.appendChild(deckInfo);
+
+        if (slide.summary) {
+          const summary = document.createElement("div");
+          summary.className = "slide-info";
+          summary.textContent = slide.summary;
+          card.appendChild(summary);
+        }
+
+        if (slide.keywords && slide.keywords.length > 0) {
+          const keywordsDiv = document.createElement("div");
+          keywordsDiv.className = "keywords";
+          keywordsDiv.innerHTML = "<strong>Keywords:</strong> ";
+          slide.keywords.forEach(keyword => {
+            const tag = document.createElement("span");
+            tag.className = "keyword-tag";
+            tag.textContent = keyword;
+            keywordsDiv.appendChild(tag);
+          });
+          card.appendChild(keywordsDiv);
+        }
+
+        recommendationsList.appendChild(card);
+      });
+
+      recommendationsDiv.classList.add("visible");
     }
 
     document.getElementById("questionForm").addEventListener("submit", async (e) => {
@@ -196,6 +308,11 @@
           statusEl.innerText = "✅ Question submitted!";
           statusEl.style.color = "green";
           document.getElementById("text").value = "";
+          
+          // Display slide recommendations
+          if (data.slide_recommendation) {
+            displayRecommendations(data.slide_recommendation);
+          }
         } else {
           statusEl.innerText = "❌ Failed to submit: " + (data.detail || "Unknown error");
           statusEl.style.color = "red";

@@ -15,7 +15,7 @@ from sentence_transformers import SentenceTransformer
 import numpy as np
 
 # Import context, can replace with any class context
-# from cs356_context import SYSTEM_PROMPT
+from cs356_context import SYSTEM_PROMPT
 
 # ========== Setup ==========
 app = FastAPI()
@@ -73,6 +73,8 @@ async def prepare_slide_embeddings():
     slide_texts = (
         df["title"] + " " +
         df["summary"] + " " +
+        df["summary"] + " " + # extra weight to summary
+        df["summary"] + " " + # extra weight to summary
         df["main_text"] + " " +
         df["keywords"].apply(lambda kws: " ".join(kws) if isinstance(kws, list) else "") + " " +
         df["deck_name"] + " " +
