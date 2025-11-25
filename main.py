@@ -7,9 +7,15 @@ from fastapi.staticfiles import StaticFiles
 from pydantic import BaseModel
 from dotenv import load_dotenv
 from groq import Groq
+import pandas as pd
+import re
+import nltk
+from nltk.corpus import stopwords
+from sentence_transformers import SentenceTransformer
+import numpy as np
 
 # Import context, can replace with any class context
-from cs356_context import SYSTEM_PROMPT
+# from cs356_context import SYSTEM_PROMPT
 
 # ========== Setup ==========
 app = FastAPI()
@@ -23,6 +29,11 @@ app.add_middleware(
 )
 
 load_dotenv()
+
+model = SentenceTransformer("all-MiniLM-L6-v2")
+
+nltk.download('stopwords')
+STOPWORDS = set(stopwords.words('english'))
 
 groq_api_key = os.getenv("GROQ_API_KEY")
 if groq_api_key:
@@ -41,6 +52,32 @@ class Question(BaseModel):
 
 # ========== API Endpoints ==========
 # Render needs to check that the connection is valid
+
+# Load pandas df
+@app.on_event("startup")
+async def load_slide_data():
+    print("📚 Loading slide data...")
+    df = pd.read_json("data/CS356_data.jsonl", lines=True)
+    app.state.slides_df = df
+    print(f"✅ Slides loaded: {df.shape[0]} rows")
+
+# Precompute slide embeddings
+@app.on_event("startup")
+async def prepare_slide_embeddings():
+    df = pd.read_json("data/CS356_data.jsonl", lines=True)
+    app.state.slides_df = df
+    
+    slide_texts = (
+        df["title"] + " " +
+        df["summary"] + " " +
+        df["main_text"]
+    ).tolist()
+    
+    embeddings = model.encode(slide_texts, normalize_embeddings=True)
+    app.state.slide_embeddings = embeddings
+    print("✅ Slide embeddings ready")
+
+# Health check endpoint
 @app.get("/health")
 async def health():
     """Health check endpoint"""
@@ -65,7 +102,34 @@ async def ask_question(q: Question):
             clients.remove(client)
     
     print(f"📊 Total: {len(questions)} questions, {len(clients)} clients")
+    
+    # Get slide recommendation
+    recommendation = recommend_slide(q.text)
+
+    await client.send_json({
+    "event": "slide_recommendation",
+    "data": recommendation
+    })
+
     return {"status": "received"}
+
+# Text Cleaning Helper Function
+def clean_text(text: str) -> str:
+    text = text.lower()
+    text = re.sub(r"[^a-z0-9\s]", "", text)
+    tokens = text.split()
+    tokens = [t for t in tokens if t not in STOPWORDS]
+    return " ".join(tokens)
+
+# 
+# Recommend slides based on the query using simple keyword matching
+# async def recommend_slide(query: str):
+#     # Clean and preprocess input using Regex
+#     # Match keywords to slides in the datafram
+    
+    
+
+
 
 # Websockets for real time data transfer to professor.html
 @app.websocket("/ws")
@@ -245,5 +309,7 @@ async def serve_professor():
 # ========== Run Server ==========
 if __name__ == "__main__":
     import uvicorn
+    df = app.state.slides_df
+    print(df.head(10))
     port = int(os.getenv("PORT", 8000))
     uvicorn.run(app, host="0.0.0.0", port=port)

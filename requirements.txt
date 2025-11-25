@@ -3,3 +3,8 @@ uvicorn[standard]
 python-dotenv
 groq
 pydantic
+nltk
+pandas
+torch
+sentence-transformers
+numpy
