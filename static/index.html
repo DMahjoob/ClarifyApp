@@ -4,6 +4,8 @@
   <meta charset="UTF-8">
   <meta name="viewport" content="width=device-width, initial-scale=1.0">
   <title>Student Q&A</title>
+  <link rel="stylesheet"
+    href="https://fonts.googleapis.com/css2?family=Material+Symbols+Outlined" />
   <style>
     body {
       font-family: Arial, sans-serif;
@@ -22,7 +24,6 @@
       resize: vertical;
       padding-right: 40px;
     }
-
     button {
       background-color: #4CAF50;
       color: white;
@@ -44,10 +45,10 @@
     }
     .corner-btn {
       position: absolute;
-      top: 8px;
+      top: 68px;
       right: 8px;
-      width: 26px;
-      height: 26px;
+      width: 30px;
+      height: 30px;
       border: none;
       border-radius: 50%;
       background: #e0e0e0;
@@ -55,24 +56,26 @@
       font-size: 14px;
       line-height: 26px;
       cursor: pointer;
-      padding: 0;
-      display: grid;
-      place-items: center;
+      padding: 2px;
+      display: flex;
+      align-items: center;
+      justify-content: center;
 
       z-index: 5;
       appearance: none;
     }
-
-
     .corner-btn:hover {
       background: #d5d5d5;
     }
-
     .corner-btn.listening {
       background: #ffdddd;
       animation: pulse 1.2s infinite;
     }
-
+    .material-symbols-outlined {
+      font-size: 20px;
+      display: block;
+      line-height: 1;
+    }
     @keyframes pulse {
       0% { transform: scale(1); }
       50% { transform: scale(1.08); }
@@ -86,7 +89,9 @@
     <input type="text" id="user" placeholder="Your name" required><br>
      <div class="textarea-wrapper">
       <textarea id="text" placeholder="Type your question..." required></textarea>
-      <button type="button" id="micBtn" class="corner-btn" title="Voice input">🎤</button>
+      <button type="button" id="micBtn" class="corner-btn" title="Voice input">
+        <span class="material-symbols-outlined" id="micIcon">mic</span>
+      </button>
     </div>
     <br>
     <button type="submit">Submit Question</button>
@@ -98,6 +103,7 @@
     const micBtn = document.getElementById("micBtn");
     const textArea = document.getElementById("text");
     const statusEl = document.getElementById("status");
+    const micIcon = document.getElementById("micIcon");
 
     const SpeechRecognition =
       window.SpeechRecognition || window.webkitSpeechRecognition;
@@ -116,9 +122,9 @@
       recognition.onstart = () => {
         isListening = true;
         micBtn.classList.add("listening");
-        micBtn.textContent = "⏹"; // stop icon
-        statusEl.innerText = "🎙 Listening...";
-        statusEl.style.color = "purple";
+        micIcon.textContent = "stop_circle";
+        statusEl.innerText = "Listening...";
+        statusEl.style.color = "green";
       };
 
       recognition.onresult = (event) => {
@@ -142,7 +148,7 @@
       recognition.onend = () => {
         isListening = false;
         micBtn.classList.remove("listening");
-        micBtn.textContent = "🎤";
+        micIcon.textContent = "mic";
         statusEl.innerText = "Voice input stopped.";
         statusEl.style.color = "gray";
       };
