@@ -30,7 +30,8 @@ app.add_middleware(
 
 load_dotenv()
 
-model = SentenceTransformer("all-MiniLM-L6-v2")
+# model = SentenceTransformer("all-MiniLM-L6-v2") # most powerful
+model = SentenceTransformer("paraphrase-MiniLM-L3-v2") # smaller and faster
 
 nltk.download('stopwords')
 STOPWORDS = set(stopwords.words('english'))
