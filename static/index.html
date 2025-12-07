@@ -1,328 +1,323 @@
 <!DOCTYPE html>
 <html lang="en">
 <head>
-  <meta charset="UTF-8">
-  <meta name="viewport" content="width=device-width, initial-scale=1.0">
-  <title>Student Q&A</title>
-  <link rel="stylesheet"
-    href="https://fonts.googleapis.com/css2?family=Material+Symbols+Outlined" />
-  <style>
-    body {
-      font-family: Arial, sans-serif;
-      max-width: 600px;
-      margin: 50px auto;
-      padding: 20px;
-    }
-    input, textarea {
-      width: 100%;
-      padding: 10px;
-      margin: 5px 0;
-      box-sizing: border-box;
-    }
-    textarea {
-      height: 100px;
-      resize: vertical;
-      padding-right: 40px;
-    }
-    button {
-      background-color: #4CAF50;
-      color: white;
-      padding: 10px 20px;
-      border: none;
-      cursor: pointer;
-      font-size: 16px;
-    }
-    button:hover {
-      background-color: #45a049;
-    }
-    #status {
-      margin-top: 10px;
-      font-weight: bold;
-    }
-    .textarea-wrapper {
-      position: relative;
-      width: 100%;
-    }
-    .corner-btn {
-      position: absolute;
-      top: 68px;
-      right: 8px;
-      width: 30px;
-      height: 30px;
-      border: none;
-      border-radius: 50%;
-      background: #e0e0e0;
-      color: black;
-      font-size: 14px;
-      line-height: 26px;
-      cursor: pointer;
-      padding: 2px;
-      display: flex;
-      align-items: center;
-      justify-content: center;
-      z-index: 5;
-      appearance: none;
-    }
-    .corner-btn:hover {
-      background: #d5d5d5;
-    }
-    .corner-btn.listening {
-      background: #ffdddd;
-      animation: pulse 1.2s infinite;
-    }
-    .material-symbols-outlined {
-      font-size: 20px;
-      display: block;
-      line-height: 1;
-    }
-    @keyframes pulse {
-      0% { transform: scale(1); }
-      50% { transform: scale(1.08); }
-      100% { transform: scale(1); }
-    }
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1.0">
+<title>Student Q&A</title>
+<link rel="stylesheet" href="https://fonts.googleapis.com/css2?family=Material+Symbols+Outlined" />
+<script src="https://cdnjs.cloudflare.com/ajax/libs/marked/11.1.1/marked.min.js"></script>
+<style>
+  body {
+    font-family: Arial, sans-serif;
+    max-width: 1400px;
+    margin: 50px auto;
+    padding: 20px;
+  }
 
-    /* Recommendation styles */
-    #recommendations {
-      margin-top: 30px;
-      padding: 20px;
-      background: #f5f5f5;
-      border-radius: 8px;
-      display: none;
-    }
-    #recommendations.visible {
-      display: block;
-    }
-    #recommendations h3 {
-      margin-top: 0;
-      color: #333;
-    }
-    .slide-card {
-      background: white;
-      padding: 15px;
-      margin: 10px 0;
-      border-radius: 6px;
-      border-left: 4px solid #4CAF50;
-      box-shadow: 0 2px 4px rgba(0,0,0,0.1);
-    }
-    .slide-card h4 {
-      margin: 0 0 8px 0;
-      color: #2c5f2d;
-    }
-    .slide-info {
-      font-size: 14px;
-      color: #666;
-      margin: 5px 0;
-    }
-    .slide-score {
-      display: inline-block;
-      background: #e8f5e9;
-      padding: 3px 8px;
-      border-radius: 4px;
-      font-size: 12px;
-      font-weight: bold;
-      color: #2e7d32;
-    }
-    .keywords {
-      margin-top: 8px;
-      font-size: 13px;
-    }
-    .keyword-tag {
-      display: inline-block;
-      background: #e3f2fd;
-      padding: 2px 8px;
-      margin: 2px;
-      border-radius: 3px;
-      font-size: 12px;
-      color: #1565c0;
-    }
-  </style>
+  h1 { text-align: center; }
+
+  /* Centered question box */
+  #questionForm {
+    max-width: 600px;
+    margin: 0 auto 40px auto;
+  }
+
+  /* Bigger inputs and text */
+  #questionForm input,
+  #questionForm textarea {
+    width: 100%;
+    padding: 15px;          /* increased from 10px */
+    margin: 8px 0;
+    font-size: 18px;        /* increased font size */
+    box-sizing: border-box;
+    border-radius: 6px;     /* optional, makes it look nicer */
+    border: 1px solid #ccc;
+  }
+
+  #questionForm textarea {
+    height: 140px;          /* increased height from 100px */
+    padding-right: 40px;
+  }
+
+  button {
+    background-color: #4CAF50;
+    color: white;
+    padding: 10px 20px;
+    border: none;
+    cursor: pointer;
+    font-size: 16px;
+  }
+
+  button:hover { background-color: #45a049; }
+
+  #status { margin-top: 10px; font-weight: bold; text-align: center; }
+
+  .textarea-wrapper { position: relative; width: 100%; }
+
+  .corner-btn {
+    position: absolute;
+    top: 68px;
+    right: 8px;
+    width: 30px;
+    height: 30px;
+    border: none;
+    border-radius: 50%;
+    background: #e0e0e0;
+    color: black;
+    font-size: 14px;
+    line-height: 26px;
+    cursor: pointer;
+    display: flex;
+    align-items: center;
+    justify-content: center;
+    z-index: 5;
+    appearance: none;
+  }
+
+  .corner-btn:hover { background: #d5d5d5; }
+  .corner-btn.listening { background: #ffdddd; animation: pulse 1.2s infinite; }
+  .material-symbols-outlined { font-size: 20px; display: block; line-height: 1; }
+  @keyframes pulse { 0% { transform: scale(1); } 50% { transform: scale(1.08); } 100% { transform: scale(1); } }
+
+  /* Pyramid layout for results */
+  #resultContainer {
+    display: flex;
+    justify-content: center;
+    gap: 40px;
+    flex-wrap: wrap;
+    margin-top: 20px;
+  }
+
+  #recommendations, #aiAnswer {
+    flex: 1 1 45%; /* grow, shrink, base 45% */
+    min-width: 400px;
+    max-width: 600px;
+    padding: 20px;
+    border-radius: 8px;
+    box-sizing: border-box;
+  }
+
+  #recommendations { background: #f5f5f5; }
+  #aiAnswer { background: #ffffff; border-left: 4px solid #2196F3; }
+
+  /* Slide cards */
+  .slide-card {
+    background: white;
+    padding: 15px;
+    margin: 10px 0;
+    border-radius: 6px;
+    border-left: 4px solid #4CAF50;
+    box-shadow: 0 2px 4px rgba(0,0,0,0.1);
+  }
+
+  .slide-card h4 { margin: 0 0 8px 0; color: #2c5f2d; }
+  .slide-info { font-size: 14px; color: #666; margin: 5px 0; }
+  .slide-score { display: inline-block; background: #e8f5e9; padding: 3px 8px; border-radius: 4px; font-size: 12px; font-weight: bold; color: #2e7d32; }
+  .keywords { margin-top: 8px; font-size: 13px; }
+  .keyword-tag { display: inline-block; background: #e3f2fd; padding: 2px 8px; margin: 2px; border-radius: 3px; font-size: 12px; color: #1565c0; }
+</style>
 </head>
-<body>
-  <h1>Ask a Question</h1>
-  <form id="questionForm">
-    <input type="text" id="user" placeholder="Your name" required><br>
-     <div class="textarea-wrapper">
-      <textarea id="text" placeholder="Type your question..." required></textarea>
-      <button type="button" id="micBtn" class="corner-btn" title="Voice input">
-        <span class="material-symbols-outlined" id="micIcon">mic</span>
-      </button>
+  <body>
+
+    <h1>Ask a Question</h1>
+
+    <form id="questionForm">
+      <input type="text" id="user" placeholder="Your name" required>
+      <div class="textarea-wrapper">
+        <textarea id="text" placeholder="Type your question..." required></textarea>
+        <button type="button" id="micBtn" class="corner-btn" title="Voice input">
+          <span class="material-symbols-outlined" id="micIcon">mic</span>
+        </button>
+      </div>
+      <button type="submit">Submit Question</button>
+    </form>
+
+    <p id="status"></p>
+
+    <div id="resultContainer">
+      <div id="recommendations" style="display:none">
+        <h3>📚 Recommended Slides</h3>
+        <div id="recommendationsList"></div>
+      </div>
+
+      <div id="aiAnswer" style="display:none">
+        <h3>💡 Intelligent TA Answer (based on course material)</h3>
+        <p id="aiAnswerText" style="margin:0; white-space: pre-wrap;"></p>
+      </div>
     </div>
-    <br>
-    <button type="submit">Submit Question</button>
-  </form>
-  
-  <p id="status"></p>
 
-  <!-- Recommendations Section -->
-  <div id="recommendations">
-    <h3>📚 Recommended Slides</h3>
-    <div id="recommendationsList"></div>
-  </div>
+    <script>
+      const micBtn = document.getElementById("micBtn");
+      const textArea = document.getElementById("text");
+      const statusEl = document.getElementById("status");
+      const micIcon = document.getElementById("micIcon");
+      const recommendationsDiv = document.getElementById("recommendations");
+      const recommendationsList = document.getElementById("recommendationsList");
+      const aiAnswerDiv = document.getElementById("aiAnswer");
+      const aiAnswerText = document.getElementById("aiAnswerText");
 
-  <script>
-    const micBtn = document.getElementById("micBtn");
-    const textArea = document.getElementById("text");
-    const statusEl = document.getElementById("status");
-    const micIcon = document.getElementById("micIcon");
-    const recommendationsDiv = document.getElementById("recommendations");
-    const recommendationsList = document.getElementById("recommendationsList");
+      const SpeechRecognition = window.SpeechRecognition || window.webkitSpeechRecognition;
+      let recognition = null;
+      let isListening = false;
 
-    const SpeechRecognition =
-      window.SpeechRecognition || window.webkitSpeechRecognition;
+      if (SpeechRecognition) {
+        recognition = new SpeechRecognition();
+        recognition.lang = "en-US";
+        recognition.interimResults = true;
+        recognition.continuous = true;
 
-    let recognition = null;
-    let isListening = false;
+        let finalTranscript = "";
 
-    if (SpeechRecognition) {
-      recognition = new SpeechRecognition();
-      recognition.lang = "en-US";
-      recognition.interimResults = true;
-      recognition.continuous = true;
+        recognition.onstart = () => {
+          isListening = true;
+          micBtn.classList.add("listening");
+          micIcon.textContent = "stop_circle";
+          statusEl.innerText = "Listening...";
+          statusEl.style.color = "green";
+        };
 
-      let finalTranscript = "";
-
-      recognition.onstart = () => {
-        isListening = true;
-        micBtn.classList.add("listening");
-        micIcon.textContent = "stop_circle";
-        statusEl.innerText = "Listening...";
-        statusEl.style.color = "green";
-      };
-
-      recognition.onresult = (event) => {
-        let interim = "";
-        for (let i = event.resultIndex; i < event.results.length; i++) {
-          const transcript = event.results[i][0].transcript;
-          if (event.results[i].isFinal) {
-            finalTranscript += transcript + " ";
-          } else {
-            interim += transcript;
+        recognition.onresult = (event) => {
+          let interim = "";
+          for (let i = event.resultIndex; i < event.results.length; i++) {
+            const transcript = event.results[i][0].transcript;
+            if (event.results[i].isFinal) {
+              finalTranscript += transcript + " ";
+            } else {
+              interim += transcript;
+            }
           }
-        }
-        textArea.value = finalTranscript + interim;
-      };
+          textArea.value = finalTranscript + interim;
+        };
 
-      recognition.onerror = (e) => {
-        statusEl.innerText = "❌ Voice error: " + e.error;
-        statusEl.style.color = "red";
-      };
+        recognition.onerror = (e) => {
+          statusEl.innerText = "❌ Voice error: " + e.error;
+          statusEl.style.color = "red";
+        };
 
-      recognition.onend = () => {
-        isListening = false;
-        micBtn.classList.remove("listening");
-        micIcon.textContent = "mic";
-        statusEl.innerText = "Voice input stopped.";
-        statusEl.style.color = "gray";
-      };
+        recognition.onend = () => {
+          isListening = false;
+          micBtn.classList.remove("listening");
+          micIcon.textContent = "mic";
+          statusEl.innerText = "Voice input stopped.";
+          statusEl.style.color = "gray";
+        };
 
-      micBtn.addEventListener("click", () => {
-        if (!isListening) {
-          finalTranscript = textArea.value.trim() ? textArea.value + " " : "";
-          recognition.start();
-        } else {
-          recognition.stop();
-        }
-      });
-
-    } else {
-      micBtn.disabled = true;
-      micBtn.title = "Voice input not supported in this browser";
-      statusEl.innerText = "⚠️ Voice input not supported in this browser.";
-      statusEl.style.color = "orange";
-    }
-
-    function displayRecommendations(recommendations) {
-      if (!recommendations || recommendations.length === 0) {
-        recommendationsDiv.classList.remove("visible");
-        return;
+        micBtn.addEventListener("click", () => {
+          if (!isListening) {
+            finalTranscript = textArea.value.trim() ? textArea.value + " " : "";
+            recognition.start();
+          } else {
+            recognition.stop();
+          }
+        });
+      } else {
+        micBtn.disabled = true;
+        micBtn.title = "Voice input not supported in this browser";
+        statusEl.innerText = "⚠️ Voice input not supported in this browser.";
+        statusEl.style.color = "orange";
       }
 
-      recommendationsList.innerHTML = "";
-
-      recommendations.forEach((slide, index) => {
-        const card = document.createElement("div");
-        card.className = "slide-card";
-
-        const title = document.createElement("h4");
-        title.textContent = `${index + 1}. ${slide.title}`;
-        card.appendChild(title);
-
-        const deckInfo = document.createElement("div");
-        deckInfo.className = "slide-info";
-        deckInfo.innerHTML = `
-          <strong>Deck:</strong> ${slide.deck_name} | 
-          <strong>Slide:</strong> ${slide.slide_number} | 
-          <span class="slide-score">Match: ${(slide.score * 100).toFixed(1)}%</span>
-        `;
-        card.appendChild(deckInfo);
-
-        if (slide.summary) {
-          const summary = document.createElement("div");
-          summary.className = "slide-info";
-          summary.textContent = slide.summary;
-          card.appendChild(summary);
+      function displayRecommendations(recommendations) {
+        if (!recommendations || recommendations.length === 0) {
+          recommendationsDiv.classList.remove("visible");
+          return;
         }
 
-        if (slide.keywords && slide.keywords.length > 0) {
-          const keywordsDiv = document.createElement("div");
-          keywordsDiv.className = "keywords";
-          keywordsDiv.innerHTML = "<strong>Keywords:</strong> ";
-          slide.keywords.forEach(keyword => {
-            const tag = document.createElement("span");
-            tag.className = "keyword-tag";
-            tag.textContent = keyword;
-            keywordsDiv.appendChild(tag);
-          });
-          card.appendChild(keywordsDiv);
-        }
+        recommendationsList.innerHTML = "";
 
-        recommendationsList.appendChild(card);
-      });
+        recommendations.forEach((slide, index) => {
+          const card = document.createElement("div");
+          card.className = "slide-card";
 
-      recommendationsDiv.classList.add("visible");
-    }
+          const title = document.createElement("h4");
+          title.textContent = `${index + 1}. ${slide.title}`;
+          card.appendChild(title);
 
-    document.getElementById("questionForm").addEventListener("submit", async (e) => {
-      e.preventDefault();
+          const deckInfo = document.createElement("div");
+          deckInfo.className = "slide-info";
+          deckInfo.innerHTML = `<strong>Deck:</strong> ${slide.deck_name} | <strong>Slide:</strong> ${slide.slide_number} | <span class="slide-score">Match: ${(slide.score * 100).toFixed(1)}%</span>`;
+          card.appendChild(deckInfo);
 
-      const user = document.getElementById("user").value;
-      const text = textArea.value;
+          if (slide.summary) {
+            const summary = document.createElement("div");
+            summary.className = "slide-info";
+            summary.textContent = slide.summary;
+            card.appendChild(summary);
+          }
 
-      statusEl.innerText = "Sending...";
-      statusEl.style.color = "blue";
-      
-      console.log("Submitting question:", { user, text });
+          if (slide.keywords && slide.keywords.length > 0) {
+            const keywordsDiv = document.createElement("div");
+            keywordsDiv.className = "keywords";
+            keywordsDiv.innerHTML = "<strong>Keywords:</strong> ";
+            slide.keywords.forEach(keyword => {
+              const tag = document.createElement("span");
+              tag.className = "keyword-tag";
+              tag.textContent = keyword;
+              keywordsDiv.appendChild(tag);
+            });
+            card.appendChild(keywordsDiv);
+          }
 
-      try {
-        const res = await fetch("/api/ask", {
-          method: "POST",
-          headers: { "Content-Type": "application/json" },
-          body: JSON.stringify({ user, text })
+          recommendationsList.appendChild(card);
         });
 
-        console.log("Response status:", res.status);
-        const data = await res.json();
-        console.log("Response data:", data);
+        recommendationsDiv.classList.add("visible");
+      }
 
-        if (res.ok) {
-          statusEl.innerText = "✅ Question submitted!";
-          statusEl.style.color = "green";
-          document.getElementById("text").value = "";
-          
-          // Display slide recommendations
-          if (data.slide_recommendation) {
-            displayRecommendations(data.slide_recommendation);
+      document.getElementById("questionForm").addEventListener("submit", async (e) => {
+        e.preventDefault();
+
+        const user = document.getElementById("user").value;
+        const text = textArea.value;
+
+        aiAnswerDiv.style.display = "none";
+        aiAnswerText.textContent = "";
+        statusEl.innerText = "Sending...";
+        statusEl.style.color = "blue";
+
+        try {
+          const res = await fetch("/api/ask", {
+            method: "POST",
+            headers: { "Content-Type": "application/json" },
+            body: JSON.stringify({ user, text })
+          });
+
+          const data = await res.json();
+
+          if (res.ok) {
+            statusEl.innerText = "✅ Question submitted!";
+            statusEl.style.color = "green";
+            document.getElementById("text").value = "";
+
+            if (data.slide_recommendation) {
+              displayRecommendations(data.slide_recommendation);
+              recommendationsDiv.style.display = "block";
+
+            }
+
+            if (data.rag_response) {
+              const time = new Date().toLocaleTimeString();
+              // Convert Markdown to HTML
+              let markdownContent = data.rag_response.replace(/\[URGENT\]/gi, '<span class="urgent">[URGENT]</span>');
+              let htmlContent = marked.parse(markdownContent);
+
+              aiAnswerText.innerHTML = `<b>[${time}]</b> ${htmlContent}`;
+              aiAnswerDiv.style.display = "block";
+            } else {
+              aiAnswerDiv.style.display = "none";
+            }
+
+          } else {
+            statusEl.innerText = "❌ Failed to submit: " + (data.detail || "Unknown error");
+            statusEl.style.color = "red";
           }
-        } else {
-          statusEl.innerText = "❌ Failed to submit: " + (data.detail || "Unknown error");
+
+        } catch (error) {
+          console.error("Error submitting question:", error);
+          statusEl.innerText = "❌ Network error: " + error.message;
           statusEl.style.color = "red";
         }
-      } catch (error) {
-        console.error("Error submitting question:", error);
-        statusEl.innerText = "❌ Network error: " + error.message;
-        statusEl.style.color = "red";
-      }
-    });
-  </script>
-</body>
+      });
+    </script>
+  </body>
 </html>

@@ -28,10 +28,12 @@ app.add_middleware(
     allow_headers=["*"],
 )
 
+# Mount static files
+app.mount("/static", StaticFiles(directory="static"), name="static")
+
 load_dotenv()
 
-# model = SentenceTransformer("all-MiniLM-L6-v2") # most powerful
-model = SentenceTransformer("paraphrase-MiniLM-L3-v2") # smaller and faster
+model = SentenceTransformer("all-MiniLM-L6-v2")
 
 nltk.download('stopwords')
 STOPWORDS = set(stopwords.words('english'))
@@ -116,12 +118,13 @@ async def ask_question(q: Question):
 
     print(f"📊 Total: {len(questions)} questions, {len(clients)} clients")
 
-    # Generate recommendation ONLY for this user
-    recommendation = recommend_slide(q.text)
+    # Generate recommendation & summary only for this user
+    recommendation, response = recommend_slide_and_answer(q.text)
 
     return {
         "status": "received",
-        "slide_recommendation": recommendation
+        "slide_recommendation": recommendation,
+        "rag_response": response
     }
 
 
@@ -133,41 +136,108 @@ def clean_text(text: str) -> str:
     tokens = [t for t in tokens if t not in STOPWORDS]
     return " ".join(tokens)
 
-# 
-# Recommend slides based on the query using simple keyword matching
-def recommend_slide(query: str):
-    # Clean and preprocess input using Regex
-    # Match keywords to slides in the datafram
+
+import numpy as np
+
+# Recommend slide and produce answer
+def recommend_slide_and_answer(query: str):
+    """
+    RAG-powered CS356 TA assistant.
+    - Retrieves relevant slides
+    - Answers question if within CS356 scope
+    - Refuses off-topic questions
+    """
+
     df = app.state.slides_df
     slide_embeddings = app.state.slide_embeddings
 
-    # Clean question
+    # ========== Preprocess Question ==========
     processed_query = clean_text(query)
 
-    # Encode question
-    query_embedding = model.encode([processed_query], normalize_embeddings=True)[0]
+    # Embed student question
+    query_embedding = model.encode(
+        [processed_query],
+        normalize_embeddings=True
+    )[0]
 
-    # Cosine similarity
+    # ========== Cosine Similarity ==========
     similarities = np.dot(slide_embeddings, query_embedding)
 
-    # Get top 3 indices
-    top_indices = np.argsort(similarities)[-3:][::-1]
+    # Get top 3 relevant slides
+    top_indices = np.argsort(similarities)[-5:][::-1]
 
     recommendations = []
+    retrieved_slides_str = ""
 
-    for idx in top_indices:
-        slide = df.iloc[idx]
-        recommendations.append({
+
+    for i in top_indices:
+        slide = df.iloc[i]
+        rec = {
             "deck_name": slide["deck_name"],
             "slide_number": int(slide["slide_number"]),
             "title": slide["title"],
-            "score": float(similarities[idx]),
+            "score": float(similarities[i]),
             "summary": slide.get("summary", ""),
             "keywords": slide.get("keywords", [])
-        })
+        }
+        recommendations.append(rec)
 
-    return recommendations
+        retrieved_slides_str += f"""
+            Deck: {rec['deck_name']}
+            Slide: {rec['slide_number']}
+            Title: {rec['title']}
+            Summary: {rec['summary']}
+            Keywords: {rec['keywords']}
+        """
 
+    # ========== RAG Prompt ==========
+    prompt = f"""
+        You are a helpful Teaching Assistant trying to assist students. Please adhere exactly to the following directions:
+
+        STEP 1 — Topic Gate
+        Determine whether the student's question is clearly related to the topics defined in the SYSTEM_PROMPT 
+
+        STEP 2 — Grounded Answering (ONLY if the question is related)
+        If the question IS related:
+        - Answer it fully and clearly at a CS356 level.
+        - PRIORITIZE using the provided slide content as your main source of truth.
+        - If slide content is insufficient, you may rely on standard CS356 knowledge, but do NOT speculate beyond course scope.
+        - Be concise, technical, and correct.
+
+        STEP 3 — Debugging Emphasis
+        If the question involves crashes, segfaults, stack smashing, or debugging:
+        - Include concrete debugging steps (e.g., gdb commands, what to inspect).
+
+        You are given the following slide context from the course materials:
+        {retrieved_slides_str}
+
+        In all responses, directly reference the slide you are basing the response off of.
+
+        Student question:
+        {query}
+    """
+
+    # ========== Groq LLM Call ==========
+    try:
+        response_rag = groq_client.chat.completions.create(
+            model="llama-3.1-8b-instant",
+            messages=[
+                {"role": "system", "content": SYSTEM_PROMPT},
+                {"role": "user", "content": prompt}
+            ],
+            max_tokens=600,
+            temperature=0.3
+        )
+
+        answer = response_rag.choices[0].message.content.strip()
+        print("✅ RAG answer generated")
+
+    except Exception as e:
+        print(f"❌ Groq error: {e}")
+        return None
+
+    # ========== Return ==========
+    return recommendations, answer
 
 # Websockets for real time data transfer to professor.html
 @app.websocket("/ws")
@@ -234,7 +304,7 @@ async def generate_quiz_from_summary(summary: str):
 You are a helpful and clear teaching assistant.
 
 From the summarized content below, generate a short quiz with:
-- 3 Multiple Choice Questions (each with 4 options A-D, and clearly mark the correct answer)
+- 5 Multiple Choice Questions (each with 4 options A-D, and clearly mark the correct answer)
 - 1 True/False question (mark correct answer)
 - 1 Fill-in-the-blank question (provide the answer)
 
@@ -298,7 +368,7 @@ async def start_summarizer():
         while True:
             await asyncio.sleep(30)
 
-            # Check if there have been more than 3 questinons and also if the number of current 
+            # Check if there have been more than 3 questions and also if the number of current 
             # questions is less than we summarized
             if len(questions) > last_summarized_count and len(questions) >= 3:
                 summary = await summarize_questions()
