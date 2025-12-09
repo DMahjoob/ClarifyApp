@@ -185,7 +185,7 @@
         <button type="button" id="generateQuizBtn" class="quiz-btn">
           Generate Quiz
         </button>
-        <select id="difficulty" required
+        <select id="difficulty" 
           style="padding: 10px; font-size: 16px; border-radius: 6px;">
           <option value="" disabled selected>Difficulty</option>
           <option value="easy">Easy</option>
@@ -203,14 +203,14 @@
         <div id="recommendationsList"></div>
       </div>
 
-      <div id="quizContainer" style="display:none">
-        <h3>📝 Generated Quiz</h3>
-        <div id="quizContent"></div>
-      </div>
-
       <div id="aiAnswer" style="display:none">
         <h3>💡 Intelligent TA Answer (based on course material)</h3>
         <p id="aiAnswerText" style="margin:0; white-space: pre-wrap;"></p>
+      </div>
+
+      <div id="quizContainer" style="display:none">
+        <h3>📝 Generated Quiz</h3>
+        <div id="quizContent"></div>
       </div>
     </div>
 
@@ -338,10 +338,10 @@
         const user = document.getElementById("user").value;
         const text = textArea.value;
 
-        quizContainer.style.display = "none";
-        quizContent.innerHTML = "";
         aiAnswerDiv.style.display = "none";
         aiAnswerText.textContent = "";
+        quizContainer.style.display = "none";
+        quizContent.innerHTML = "";
         statusEl.innerText = "Sending...";
         statusEl.style.color = "blue";
 
@@ -396,6 +396,13 @@
 
 
       quizBtn.addEventListener("click", async () => {
+        recommendationsDiv.style.display = "none";
+        quizContainer.style.display = "none";
+        quizContent.innerHTML = "";
+        aiAnswerDiv.style.display = "none";
+        aiAnswerText.textContent = "";
+        statusEl.innerText = "Sending...";
+        statusEl.style.color = "blue";
         const user = document.getElementById("user").value;
         const text = textArea.value;
         const difficulty = difficultySelect.value;
