@@ -56,7 +56,7 @@
 
   .corner-btn {
     position: absolute;
-    top: 68px;
+    top: 110px;
     right: 8px;
     width: 30px;
     height: 30px;
@@ -115,6 +115,56 @@
   .slide-score { display: inline-block; background: #e8f5e9; padding: 3px 8px; border-radius: 4px; font-size: 12px; font-weight: bold; color: #2e7d32; }
   .keywords { margin-top: 8px; font-size: 13px; }
   .keyword-tag { display: inline-block; background: #e3f2fd; padding: 2px 8px; margin: 2px; border-radius: 3px; font-size: 12px; color: #1565c0; }
+  
+  /* Quiz button */
+  .quiz-btn {
+    background-color: #1e88e5;
+    color: white;
+    padding: 12px 20px;
+    border: none;
+    cursor: pointer;
+    font-size: 16px;
+    border-radius: 6px;
+    font-weight: bold;
+  }
+
+  .quiz-btn:hover {
+    background-color: #1565c0;
+  }
+
+  #quizContainer {
+  flex: 1 1 100%;
+  max-width: 900px;
+  background: #fff8e1;
+  padding: 20px;
+  border-radius: 8px;
+  border-left: 4px solid #ffb300;
+}
+
+.quiz-question {
+  margin-bottom: 18px;
+  padding: 15px;
+  background: white;
+  border-radius: 6px;
+  box-shadow: 0 2px 4px rgba(0,0,0,0.08);
+}
+
+.quiz-question h4 {
+  margin: 0 0 10px 0;
+}
+
+.quiz-option {
+  margin-left: 20px;
+  font-size: 15px;
+}
+
+.quiz-answer {
+  margin-top: 8px;
+  font-size: 14px;
+  color: #2e7d32;
+  font-weight: bold;
+}
+
 </style>
 </head>
   <body>
@@ -129,7 +179,20 @@
           <span class="material-symbols-outlined" id="micIcon">mic</span>
         </button>
       </div>
-      <button type="submit">Submit Question</button>
+      <div style="display: flex; gap: 10px; align-items: center; margin-top: 10px;">
+        <button type="submit">Submit Question</button>
+
+        <button type="button" id="generateQuizBtn" class="quiz-btn">
+          Generate Quiz
+        </button>
+        <select id="difficulty" required
+          style="padding: 10px; font-size: 16px; border-radius: 6px;">
+          <option value="" disabled selected>Difficulty</option>
+          <option value="easy">Easy</option>
+          <option value="medium">Medium</option>
+          <option value="hard">Hard</option>
+        </select>
+      </div>
     </form>
 
     <p id="status"></p>
@@ -138,6 +201,11 @@
       <div id="recommendations" style="display:none">
         <h3>📚 Recommended Slides</h3>
         <div id="recommendationsList"></div>
+      </div>
+
+      <div id="quizContainer" style="display:none">
+        <h3>📝 Generated Quiz</h3>
+        <div id="quizContent"></div>
       </div>
 
       <div id="aiAnswer" style="display:none">
@@ -270,6 +338,8 @@
         const user = document.getElementById("user").value;
         const text = textArea.value;
 
+        quizContainer.style.display = "none";
+        quizContent.innerHTML = "";
         aiAnswerDiv.style.display = "none";
         aiAnswerText.textContent = "";
         statusEl.innerText = "Sending...";
@@ -287,7 +357,6 @@
           if (res.ok) {
             statusEl.innerText = "✅ Question submitted!";
             statusEl.style.color = "green";
-            document.getElementById("text").value = "";
 
             if (data.slide_recommendation) {
               displayRecommendations(data.slide_recommendation);
@@ -318,6 +387,78 @@
           statusEl.style.color = "red";
         }
       });
+
+      // Quiz Information
+      const quizBtn = document.getElementById("generateQuizBtn");
+      const difficultySelect = document.getElementById("difficulty");
+      const quizContainer = document.getElementById("quizContainer");
+      const quizContent = document.getElementById("quizContent");
+
+
+      quizBtn.addEventListener("click", async () => {
+        const user = document.getElementById("user").value;
+        const text = textArea.value;
+        const difficulty = difficultySelect.value;
+
+        if (!difficulty) {
+          statusEl.innerText = "⚠️ Please select a difficulty.";
+          statusEl.style.color = "orange";
+          return;
+        }
+
+        statusEl.innerText = "Generating quiz...";
+        statusEl.style.color = "#1e88e5";
+
+        try {
+          const res = await fetch("/api/generate-quiz", {
+            method: "POST",
+            headers: { "Content-Type": "application/json" },
+            body: JSON.stringify({
+              user,
+              text,
+              difficulty
+            })
+          });
+
+          const data = await res.json();
+
+          if (res.ok) {
+            statusEl.innerText = "✅ Quiz generated!";
+            statusEl.style.color = "green";
+
+            quizContent.innerHTML = "";
+            quizContainer.style.display = "block";
+
+            data.questions.forEach((q, index) => {
+              const div = document.createElement("div");
+              div.className = "quiz-question";
+
+              let html = `<h4>Q${index + 1}. ${q.question}</h4>`;
+
+              if (q.options && q.options.length > 0) {
+                q.options.forEach(opt => {
+                  html += `<div class="quiz-option">• ${opt}</div>`;
+                });
+              }
+
+              if (q.answer) {
+                html += `<div class="quiz-answer"> Answer: ${q.answer}</div>`;
+              }
+
+              div.innerHTML = html;
+              quizContent.appendChild(div);
+            });
+
+          } else {
+            statusEl.innerText = "❌ Quiz generation failed.";
+            statusEl.style.color = "red";
+          }
+        } catch (err) {
+          statusEl.innerText = "❌ Network error: " + err.message;
+          statusEl.style.color = "red";
+        }
+      });
+
     </script>
   </body>
 </html>

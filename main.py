@@ -13,6 +13,7 @@ import nltk
 from nltk.corpus import stopwords
 from sentence_transformers import SentenceTransformer
 import numpy as np
+import json
 
 # Import context, can replace with any class context
 from cs356_context import SYSTEM_PROMPT
@@ -52,6 +53,12 @@ clients: list[WebSocket] = []
 class Question(BaseModel):
     text: str
     user: str
+
+class QuizRequest(BaseModel):
+    user: str
+    text: str
+    difficulty: str  # "easy", "medium", "hard"
+
 
 # ========== API Endpoints ==========
 # Render needs to check that the connection is valid
@@ -126,6 +133,70 @@ async def ask_question(q: Question):
         "slide_recommendation": recommendation,
         "rag_response": response
     }
+
+# Awaiting user to request a quiz
+@app.post("/api/generate-quiz")
+async def generate_quiz(req: QuizRequest):
+    try:
+        print(f"Quiz request from {req.user} | Difficulty: {req.difficulty}")
+
+        if req.difficulty not in {"easy", "medium", "hard"}:
+            return {
+                "status": "error",
+                "detail": "Invalid difficulty"
+            }
+
+        raw_quiz = generate_quiz_from_question(req.text, req.difficulty)
+
+        try:
+            quiz_json = json.loads(raw_quiz)
+        except json.JSONDecodeError:
+            return {
+                "status": "error",
+                "detail": "Failed to parse quiz JSON from LLM"
+            }
+
+        # Flatten quiz into frontend-friendly format
+        questions = []
+
+        # MCQs
+        for q in quiz_json.get("mcq", []):
+            questions.append({
+                "question": q["question"],
+                "options": list(q["options"].values()),
+                "answer": q["answer"]
+            })
+
+        # True / False
+        tf = quiz_json.get("true_false")
+        if tf:
+            questions.append({
+                "question": tf["question"],
+                "options": ["True", "False"],
+                "answer": str(tf["answer"])
+            })
+
+        # Short Answer
+        sa = quiz_json.get("short_answer")
+        if sa:
+            questions.append({
+                "question": sa["question"],
+                "answer": sa["answer"]
+            })
+
+        return {
+            "status": "success",
+            "questions": questions
+        }
+
+    except Exception as e:
+        print(f"❌ Quiz generation error: {e}")
+        return {
+            "status": "error",
+            "detail": "Internal quiz generation error"
+        }
+
+
 
 
 # Text Cleaning Helper Function
@@ -238,6 +309,92 @@ def recommend_slide_and_answer(query: str):
 
     # ========== Return ==========
     return recommendations, answer
+
+# Generate quiz from user input
+def generate_quiz_from_question(query: str, difficulty: str):
+    """
+    Generate a quiz from a single student question/topic.
+    Difficulty controls depth and subtlety.
+    """
+
+    df = app.state.slides_df
+    slide_embeddings = app.state.slide_embeddings
+
+    processed_query = clean_text(query)
+    query_embedding = model.encode([processed_query], normalize_embeddings=True)[0]
+
+    similarities = np.dot(slide_embeddings, query_embedding)
+    top_indices = np.argsort(similarities)[-5:][::-1]
+
+    retrieved_slides = ""
+    for i in top_indices:
+        slide = df.iloc[i]
+        retrieved_slides += f"""
+        Deck: {slide['deck_name']}
+        Slide: {slide['slide_number']}
+        Title: {slide['title']}
+        Summary: {slide.get('summary', '')}
+        Keywords: {slide.get('keywords', [])}
+        """
+
+    difficulty_guidance = {
+        "easy": "Focus on definitions, direct recall, and surface-level understanding.",
+        "medium": "Include conceptual understanding and light application.",
+        "hard": "Include tricky edge cases, reasoning, pitfalls, or debugging-style questions."
+    }
+
+    quiz_prompt = f"""
+    You are a CS356 teaching assistant.
+
+    Generate a quiz based ONLY on the provided slide content.
+
+    Difficulty: {difficulty.upper()}
+    Guidance: {difficulty_guidance.get(difficulty, "")}
+
+    Generate:
+    - 4 Multiple Choice Questions (A–D, mark correct answer)
+    - 1 True/False question
+    - 1 Short-answer question
+
+    Return JSON ONLY in this exact format:
+
+    {{
+    "difficulty": "{difficulty}",
+    "mcq": [
+        {{
+        "question": "...?",
+        "options": {{"A": "...", "B": "...", "C": "...", "D": "..."}},
+        "answer": "A"
+        }}
+    ],
+    "true_false": {{
+        "question": "...?",
+        "answer": true
+    }},
+    "short_answer": {{
+        "question": "...?",
+        "answer": "..."
+    }}
+    }}
+
+    Slides:
+    {retrieved_slides}
+
+    Topic:
+    {query}
+    """
+
+    response = groq_client.chat.completions.create(
+        model="llama-3.1-8b-instant",
+        messages=[
+            {"role": "system", "content": SYSTEM_PROMPT},
+            {"role": "user", "content": quiz_prompt}
+        ],
+        max_tokens=900,
+        temperature=0.4
+    )
+
+    return response.choices[0].message.content
 
 # Websockets for real time data transfer to professor.html
 @app.websocket("/ws")
