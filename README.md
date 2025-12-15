@@ -226,16 +226,7 @@ async def start_summarizer():
 - Student interface: Modify styles in `static/index.html`
 - Professor dashboard: Modify styles in `static/professor.html`
 
-## Deployment
-
-### Render / Railway / Heroku
-
-The app is deployment-ready. Ensure you:
-1. Set `GROQ_API_KEY` as an environment variable
-2. Set `PORT` if required (defaults to 8000)
-3. The app will use `PORT` from environment or default
-
-### Docker (Optional)
+### Docker
 
 Create a `Dockerfile`:
 ```dockerfile
@@ -267,16 +258,3 @@ CMD ["python", "main.py"]
 - Groq API has rate limits
 - Check your API key quota
 - Consider caching common queries
-
-## License
-
-[Specify your license]
-
-## Contributors
-
-[List contributors]
-
-## Acknowledgments
-
-- Course material structure inspired by CS:APP textbook
-- Built with FastAPI, SentenceTransformers, and Groq
