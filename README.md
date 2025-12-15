@@ -1,4 +1,4 @@
-# Live Classroom Q&A System
+# Clarify App - Live Classroom Q&A System
 
 An intelligent real-time classroom question-and-answer system that helps professors monitor student questions, receive AI-powered summaries, and generate quizzes based on course material.
 
