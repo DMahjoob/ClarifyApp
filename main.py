@@ -18,6 +18,15 @@ import json
 # Import context, can replace with any class context
 from cs356_context import SYSTEM_PROMPT
 
+# for Ava
+from dotenv import load_dotenv
+import os
+
+load_dotenv()
+
+OPENAI_API_KEY = os.getenv("OPENAI_API_KEY")
+# for Ava btw
+
 # ========== Setup ==========
 app = FastAPI()
 
