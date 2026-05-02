@@ -54,7 +54,7 @@ pip install -r requirements.txt
 Create a `.env` file in the root directory:
 ```env
 GROQ_API_KEY=your_groq_api_key_here
-PORT=8000  # Optional, defaults to 8000
+PORT=8000
 ```
 
 4. **Prepare course data**
