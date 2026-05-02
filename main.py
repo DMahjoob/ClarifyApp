@@ -18,15 +18,6 @@ import json
 # Import context, can replace with any class context
 from cs356_context import SYSTEM_PROMPT
 
-# for Ava
-from dotenv import load_dotenv
-import os
-
-load_dotenv()
-
-OPENAI_API_KEY = os.getenv("OPENAI_API_KEY")
-# for Ava btw
-
 # ========== Setup ==========
 app = FastAPI()
 
@@ -61,12 +52,13 @@ clients: list[WebSocket] = []
 
 class Question(BaseModel):
     text: str
-    user: str
+    user: str = ""
 
 class QuizRequest(BaseModel):
-    user: str
+    user: str = ""
     text: str
     difficulty: str  # "easy", "medium", "hard"
+    question_types: list[str] = ["mcq", "true_false", "short_answer"]
 
 
 # ========== API Endpoints ==========
@@ -135,7 +127,9 @@ async def ask_question(q: Question):
     print(f"📊 Total: {len(questions)} questions, {len(clients)} clients")
 
     # Generate recommendation & summary only for this user
-    recommendation, response = recommend_slide_and_answer(q.text)
+    # Run in executor to avoid blocking the event loop (which blocks the summarizer + websockets)
+    loop = asyncio.get_event_loop()
+    recommendation, response = await loop.run_in_executor(None, recommend_slide_and_answer, q.text)
 
     return {
         "status": "received",
@@ -155,7 +149,10 @@ async def generate_quiz(req: QuizRequest):
                 "detail": "Invalid difficulty"
             }
 
-        raw_quiz = generate_quiz_from_question(req.text, req.difficulty)
+        loop = asyncio.get_event_loop()
+        raw_quiz = await loop.run_in_executor(
+            None, generate_quiz_from_question, req.text, req.difficulty, req.question_types
+        )
 
         try:
             quiz_json = json.loads(raw_quiz)
@@ -170,9 +167,10 @@ async def generate_quiz(req: QuizRequest):
 
         # MCQs
         for q in quiz_json.get("mcq", []):
+            options_dict = q["options"]
             questions.append({
                 "question": q["question"],
-                "options": list(q["options"].values()),
+                "options": list(options_dict.values()),
                 "answer": q["answer"]
             })
 
@@ -272,26 +270,24 @@ def recommend_slide_and_answer(query: str):
 
     # ========== RAG Prompt ==========
     prompt = f"""
-        You are a helpful Teaching Assistant trying to assist students. Please adhere exactly to the following directions:
+        You are a helpful Teaching Assistant. You must ONLY answer using the slide content provided below. Follow these rules strictly:
 
-        STEP 1 — Topic Gate
-        Determine whether the student's question is clearly related to the topics defined in the SYSTEM_PROMPT 
+        RULE 1 — Slide-Only Answers
+        - ONLY use information that is explicitly stated in the provided slides.
+        - Do NOT use outside knowledge, even if you know the answer.
+        - If the slides do not contain enough information to answer the question, say: "This topic is not covered in the available course slides."
 
-        STEP 2 — Grounded Answering (ONLY if the question is related)
-        If the question IS related:
-        - Answer it fully and clearly at a CS356 level.
-        - PRIORITIZE using the provided slide content as your main source of truth.
-        - If slide content is insufficient, you may rely on standard CS356 knowledge, but do NOT speculate beyond course scope.
-        - Be concise, technical, and correct.
+        RULE 2 — Topic Gate
+        - If the question is clearly unrelated to the course material in the slides, say: "This question is outside the scope of the course material."
 
-        STEP 3 — Debugging Emphasis
-        If the question involves crashes, segfaults, stack smashing, or debugging:
-        - Include concrete debugging steps (e.g., gdb commands, what to inspect).
+        RULE 3 — Citations
+        - For every claim in your answer, reference the specific slide it comes from (deck name and slide number).
 
-        You are given the following slide context from the course materials:
+        RULE 4 — Debugging Emphasis
+        - If the question involves crashes, segfaults, stack smashing, or debugging, and the slides cover it, include concrete debugging steps from the slides.
+
+        COURSE SLIDES:
         {retrieved_slides_str}
-
-        In all responses, directly reference the slide you are basing the response off of.
 
         Student question:
         {query}
@@ -320,11 +316,13 @@ def recommend_slide_and_answer(query: str):
     return recommendations, answer
 
 # Generate quiz from user input
-def generate_quiz_from_question(query: str, difficulty: str):
+def generate_quiz_from_question(query: str, difficulty: str, question_types: list[str] = None):
     """
     Generate a quiz from a single student question/topic.
     Difficulty controls depth and subtlety.
     """
+    if question_types is None:
+        question_types = ["mcq", "true_false", "short_answer"]
 
     df = app.state.slides_df
     slide_embeddings = app.state.slide_embeddings
@@ -352,6 +350,24 @@ def generate_quiz_from_question(query: str, difficulty: str):
         "hard": "Include tricky edge cases, reasoning, pitfalls, or debugging-style questions."
     }
 
+    # Build generation instructions and JSON format based on selected types
+    generate_lines = []
+    json_parts = []
+    json_parts.append(f'"difficulty": "{difficulty}"')
+
+    if "mcq" in question_types:
+        generate_lines.append("- 4 Multiple Choice Questions (A–D, mark correct answer)")
+        json_parts.append('"mcq": [{"question": "...?", "options": {"A": "...", "B": "...", "C": "...", "D": "..."}, "answer": "A"}]')
+    if "true_false" in question_types:
+        generate_lines.append("- 1 True/False question")
+        json_parts.append('"true_false": {"question": "...?", "answer": true}')
+    if "short_answer" in question_types:
+        generate_lines.append("- 1 Short-answer question")
+        json_parts.append('"short_answer": {"question": "...?", "answer": "..."}')
+
+    generate_section = "\n    ".join(generate_lines)
+    json_format = "{\n    " + ",\n    ".join(json_parts) + "\n    }"
+
     quiz_prompt = f"""
     You are a CS356 teaching assistant.
 
@@ -361,30 +377,11 @@ def generate_quiz_from_question(query: str, difficulty: str):
     Guidance: {difficulty_guidance.get(difficulty, "")}
 
     Generate:
-    - 4 Multiple Choice Questions (A–D, mark correct answer)
-    - 1 True/False question
-    - 1 Short-answer question
+    {generate_section}
 
     Return JSON ONLY in this exact format:
 
-    {{
-    "difficulty": "{difficulty}",
-    "mcq": [
-        {{
-        "question": "...?",
-        "options": {{"A": "...", "B": "...", "C": "...", "D": "..."}},
-        "answer": "A"
-        }}
-    ],
-    "true_false": {{
-        "question": "...?",
-        "answer": true
-    }},
-    "short_answer": {{
-        "question": "...?",
-        "answer": "..."
-    }}
-    }}
+    {json_format}
 
     Slides:
     {retrieved_slides}

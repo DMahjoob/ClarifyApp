@@ -1,218 +1,381 @@
 <!DOCTYPE html>
-<html>
+<html lang="en">
 <head>
-  <meta charset="utf-8">
-  <meta name="viewport" content="width=device-width, initial-scale=1.0">
-  <title>Professor Dashboard</title>
-  <!-- Marked.js for markdown rendering -->
-  <script src="https://cdnjs.cloudflare.com/ajax/libs/marked/11.1.1/marked.min.js"></script>
-  <style>
-    body {
-      font-family: Arial, sans-serif;
-      max-width: 900px;
-      margin: 20px auto;
-      padding: 20px;
-    }
-    h1 { color: #333; }
-    .box {
-      border: 1px solid #ccc;
-      padding: 15px;
-      height: 250px;
-      overflow: auto;
-      background-color: #f9f9f9;
-      margin-bottom: 20px;
-    }
-    .question-item {
-      padding: 10px;
-      margin: 5px 0;
-      background-color: white;
-      border-left: 3px solid #4CAF50;
-    }
-    .summary-item {
-      padding: 10px;
-      margin: 5px 0;
-      background-color: #fff3cd;
-      border-left: 3px solid #ffc107;
-    }
-    .summary-item strong {
-      color: #333;
-      font-size: 1.05em;
-    }
-    .summary-item ul {
-      margin: 5px 0;
-      padding-left: 20px;
-    }
-    .urgent {
-      color: #d32f2f;
-      font-weight: bold;
-      background-color: #ffebee;
-      padding: 2px 6px;
-      border-radius: 3px;
-    }
-    #connectionStatus {
-      padding: 10px;
-      margin-bottom: 10px;
-      border-radius: 5px;
-      font-weight: bold;
-    }
-    .connected {
-      background-color: #d4edda;
-      color: #155724;
-    }
-    .disconnected {
-      background-color: #f8d7da;
-      color: #721c24;
-    }
-  </style>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1.0">
+<title>ClarifyApp · Professor Dashboard</title>
+<link rel="stylesheet" href="https://fonts.googleapis.com/css2?family=Material+Symbols+Outlined" />
+<link href="https://fonts.googleapis.com/css2?family=Space+Mono:wght@400;700&display=swap" rel="stylesheet">
+<script src="https://cdnjs.cloudflare.com/ajax/libs/marked/11.1.1/marked.min.js"></script>
+<style>
+  :root {
+    --bg: #f2ede8;
+    --surface: #ffffff;
+    --surface2: #e8e2db;
+    --card-bg: #f07272;
+    --border: rgba(60,45,35,0.12);
+    --accent: #e8185d;
+    --accent-dark: #c4134f;
+    --text: #2a2018;
+    --text-muted: #7a6e66;
+    --text-dim: #5c5048;
+    --green: #2a7a4b;
+    --mono: 'Space Mono', monospace;
+  }
+
+  * { box-sizing: border-box; margin: 0; padding: 0; }
+
+  body {
+    font-family: var(--mono);
+    background-color: var(--bg);
+    background-image:
+      linear-gradient(rgba(60,45,35,0.05) 1px, transparent 1px),
+      linear-gradient(90deg, rgba(60,45,35,0.05) 1px, transparent 1px);
+    background-size: 48px 48px;
+    color: var(--text);
+    min-height: 100vh;
+  }
+
+  nav {
+    position: sticky; top: 0; z-index: 100;
+    display: flex; align-items: center; justify-content: space-between;
+    padding: 0 2.5rem; height: 56px;
+    background: rgba(242,237,232,0.92);
+    backdrop-filter: blur(16px);
+    border-bottom: 1px solid var(--border);
+  }
+
+  .nav-brand { font-size: 0.78rem; color: var(--text-dim); letter-spacing: 0.05em; }
+  .nav-links { display: flex; gap: 2rem; }
+  .nav-links a { font-size: 0.75rem; color: var(--text-muted); text-decoration: none; letter-spacing: 0.06em; transition: color 0.15s; }
+  .nav-links a:hover { color: var(--text); }
+  .nav-links a.active { color: var(--accent); }
+
+  /* ── CONNECTION BAR ── */
+  #connBar {
+    display: flex; align-items: center; gap: 8px;
+    font-size: 0.7rem; letter-spacing: 0.08em;
+    padding: 8px 2.5rem;
+    border-bottom: 1px solid var(--border);
+    transition: all 0.3s;
+  }
+  #connBar.connected { background: rgba(42,122,75,0.06); color: var(--green); }
+  #connBar.disconnected { background: rgba(232,24,93,0.05); color: var(--accent); }
+
+  .conn-dot { width: 6px; height: 6px; border-radius: 50%; flex-shrink: 0; }
+  .connected .conn-dot { background: var(--green); animation: blink 2s step-end infinite; }
+  .disconnected .conn-dot { background: var(--accent); }
+  @keyframes blink { 0%,100%{opacity:1;} 50%{opacity:0.3;} }
+
+  /* ── PAGE ── */
+  .page { max-width: 1060px; margin: 0 auto; padding: 2.5rem 2rem 5rem; }
+
+  .section-heading { font-size: clamp(1.4rem, 3.5vw, 2rem); font-weight: 700; margin-bottom: 0.3rem; color: var(--text); }
+  .section-heading .pink { color: var(--accent); }
+  .section-sub { font-size: 0.78rem; color: var(--text-muted); margin-bottom: 2rem; }
+
+  /* ── STATS ── */
+  .stats-row {
+    display: grid; grid-template-columns: repeat(4, 1fr);
+    gap: 1px; background: var(--border);
+    border: 1px solid var(--border); border-radius: 4px;
+    overflow: hidden; margin-bottom: 2rem;
+  }
+  @media (max-width: 600px) { .stats-row { grid-template-columns: 1fr 1fr; } }
+
+  .stat-cell { background: var(--surface); padding: 1.1rem 1.4rem; transition: background 0.15s; }
+  .stat-cell:hover { background: var(--surface2); }
+  .stat-label { font-size: 0.62rem; color: var(--text-muted); letter-spacing: 0.1em; text-transform: uppercase; margin-bottom: 0.35rem; }
+  .stat-value { font-size: 1.6rem; font-weight: 700; color: var(--text); line-height: 1; }
+  .stat-value.pink { color: var(--accent); }
+  .stat-value.green { color: var(--green); }
+
+  /* ── GRID ── */
+  .dashboard-grid { display: grid; grid-template-columns: 1fr 1fr; gap: 1.25rem; }
+  @media (max-width: 780px) { .dashboard-grid { grid-template-columns: 1fr; } }
+
+  .panel { border-radius: 4px; overflow: hidden; display: flex; flex-direction: column; max-height: 480px; }
+  .panel.full { grid-column: 1 / -1; max-height: none; }
+
+  .panel-head {
+    background: var(--card-bg); padding: 0.75rem 1.1rem;
+    display: flex; align-items: center; justify-content: space-between;
+    flex-shrink: 0;
+  }
+
+  .panel-head-title { font-size: 0.72rem; font-weight: 700; color: white; letter-spacing: 0.08em; display: flex; align-items: center; gap: 6px; }
+  .panel-head-title .material-symbols-outlined { font-size: 14px; }
+  .panel-badge { font-size: 0.66rem; color: rgba(255,255,255,0.8); letter-spacing: 0.06em; }
+
+  .live-chip { display: flex; align-items: center; gap: 5px; font-size: 0.64rem; color: rgba(255,255,255,0.9); letter-spacing: 0.08em; }
+  .live-dot { width: 5px; height: 5px; border-radius: 50%; background: white; animation: blink 1.2s step-end infinite; }
+
+  .panel-body { background: var(--surface); border: 1px solid var(--border); border-top: none; padding: 1rem 1.1rem; flex: 1; overflow-y: auto; }
+
+  /* ── QUESTION ITEMS ── */
+  .q-item { display: flex; gap: 10px; padding: 0.75rem 0; border-bottom: 1px solid var(--border); animation: slide-in 0.3s ease both; }
+  .q-item:last-child { border-bottom: none; }
+  @keyframes slide-in { from { opacity:0; transform:translateX(-6px); } to { opacity:1; transform:translateX(0); } }
+
+  .q-avatar {
+    width: 28px; height: 28px; border-radius: 4px; flex-shrink: 0;
+    background: var(--card-bg);
+    display: flex; align-items: center; justify-content: center;
+    font-size: 0.65rem; font-weight: 700; color: white;
+  }
+
+  .q-meta { display: flex; align-items: center; gap: 8px; margin-bottom: 2px; }
+  .q-name { font-size: 0.7rem; font-weight: 700; color: var(--accent); letter-spacing: 0.05em; }
+  .q-time { font-size: 0.62rem; color: var(--text-muted); }
+  .q-text { font-size: 0.8rem; color: var(--text-dim); line-height: 1.5; }
+
+  .urgent { color: var(--accent); font-weight: 700; background: rgba(232,24,93,0.08); border-radius: 3px; padding: 1px 5px; }
+
+  /* ── SUMMARY ── */
+  .summary-entry {
+    background: var(--surface2); border: 1px solid var(--border);
+    border-left: 3px solid var(--accent);
+    border-radius: 4px; padding: 0.85rem; margin-bottom: 0.75rem;
+    animation: slide-in 0.3s ease both;
+  }
+  .summary-ts { font-size: 0.63rem; color: var(--text-muted); letter-spacing: 0.08em; margin-bottom: 0.5rem; }
+  .summary-body { font-size: 0.8rem; color: var(--text-dim); line-height: 1.65; }
+  .summary-body strong { color: var(--text); }
+  .summary-body ul { padding-left: 1.25rem; margin: 0.3rem 0; }
+  .summary-body li { margin-bottom: 0.2rem; }
+  .summary-body code { font-family: var(--mono); font-size: 0.8em; background: var(--surface); border: 1px solid var(--border); border-radius: 3px; padding: 1px 5px; color: var(--accent); }
+
+  /* ── QUIZ ── */
+  .quiz-section-label { font-size: 0.62rem; color: var(--text-muted); letter-spacing: 0.1em; text-transform: uppercase; padding-bottom: 0.5rem; border-bottom: 1px solid var(--border); margin-bottom: 0.75rem; }
+  .quiz-section { margin-bottom: 1.5rem; }
+
+  .quiz-q { background: var(--surface2); border: 1px solid var(--border); border-radius: 4px; padding: 0.85rem; margin-bottom: 0.5rem; animation: slide-in 0.3s ease both; }
+  .quiz-qtext { font-size: 0.82rem; color: var(--text); font-weight: 700; margin-bottom: 8px; line-height: 1.4; }
+  .quiz-opts { display: grid; grid-template-columns: 1fr 1fr; gap: 4px; margin-bottom: 8px; }
+  .quiz-opt { display: flex; gap: 6px; font-size: 0.77rem; color: var(--text-dim); align-items: flex-start; }
+  .quiz-opt-key { font-size: 0.64rem; color: var(--accent); font-weight: 700; flex-shrink: 0; margin-top: 1px; min-width: 18px; }
+  .quiz-ans { font-size: 0.7rem; color: var(--green); padding-top: 8px; border-top: 1px solid var(--border); letter-spacing: 0.05em; }
+
+  /* ── EMPTY STATE ── */
+  .empty { display: flex; flex-direction: column; align-items: center; justify-content: center; min-height: 120px; color: var(--text-muted); text-align: center; gap: 8px; }
+  .empty .material-symbols-outlined { font-size: 24px; opacity: 0.3; }
+  .empty p { font-size: 0.75rem; letter-spacing: 0.04em; }
+
+  /* ── CURSOR ── */
+  .cursor { font-size: 0.82rem; color: var(--text-muted); margin: 2rem 0 0; }
+  .cursor::after { content: '▌'; color: var(--accent); animation: blink 1s step-end infinite; }
+
+  ::-webkit-scrollbar { width: 4px; }
+  ::-webkit-scrollbar-track { background: transparent; }
+  ::-webkit-scrollbar-thumb { background: var(--border); border-radius: 2px; }
+</style>
 </head>
 <body>
-  <h1>📊 Live Classroom Q&A</h1>
 
-  <div id="connectionStatus" class="disconnected">🔴 Connecting to server...</div>
+<nav>
+  <span class="nav-brand">ClarifyApp // PROFESSOR DASHBOARD</span>
+  <div class="nav-links">
+    <a href="/">student</a>
+    <a href="/professor.html" class="active">professor</a>
+  </div>
+</nav>
 
-  <h2>Incoming Questions (<span id="questionCount">0</span>)</h2>
-  <div id="questions" class="box">
-    <p style="color: #999;">Waiting for questions...</p>
+<div id="connBar" class="disconnected">
+  <span class="conn-dot"></span>
+  <span id="connText">CONNECTING TO SERVER…</span>
+</div>
+
+<div class="page">
+
+  <h1 class="section-heading">def <span class="pink">viewClassroom()</span>:</h1>
+  <p class="section-sub">&gt; Live Q&amp;A feed, AI summaries, and auto-generated quizzes.</p>
+
+  <!-- STATS -->
+  <div class="stats-row">
+    <div class="stat-cell">
+      <div class="stat-label">Questions</div>
+      <div class="stat-value pink" id="statQ">0</div>
+    </div>
+    <div class="stat-cell">
+      <div class="stat-label">Summaries</div>
+      <div class="stat-value" id="statS">0</div>
+    </div>
+    <div class="stat-cell">
+      <div class="stat-label">Quizzes</div>
+      <div class="stat-value" id="statQz">0</div>
+    </div>
+    <div class="stat-cell">
+      <div class="stat-label">Status</div>
+      <div class="stat-value green" id="statStatus" style="font-size:0.85rem;margin-top:4px;">—</div>
+    </div>
   </div>
 
-  <h2>AI Summaries</h2>
-  <div id="summaries" class="box">
-    <p style="color: #999;">AI summaries will appear here...</p>
+  <!-- DASHBOARD GRID -->
+  <div class="dashboard-grid">
+
+    <!-- QUESTIONS -->
+    <div class="panel">
+      <div class="panel-head">
+        <div class="panel-head-title"><span class="material-symbols-outlined">forum</span>INCOMING QUESTIONS</div>
+        <div class="live-chip"><span class="live-dot"></span>LIVE · <span id="qBadge">0</span></div>
+      </div>
+      <div class="panel-body" id="questionsBody">
+        <div class="empty" id="qEmpty">
+          <span class="material-symbols-outlined">chat_bubble_outline</span>
+          <p>waiting for student questions…</p>
+        </div>
+      </div>
+    </div>
+
+    <!-- SUMMARIES -->
+    <div class="panel">
+      <div class="panel-head">
+        <div class="panel-head-title"><span class="material-symbols-outlined">auto_awesome</span>AI SUMMARIES</div>
+        <span class="panel-badge" id="sBadge">0 summaries</span>
+      </div>
+      <div class="panel-body" id="summariesBody">
+        <div class="empty" id="sEmpty">
+          <span class="material-symbols-outlined">summarize</span>
+          <p>summaries appear every 30s after 3+ questions.</p>
+        </div>
+      </div>
+    </div>
+
+    <!-- QUIZ -->
+    <div class="panel full">
+      <div class="panel-head">
+        <div class="panel-head-title"><span class="material-symbols-outlined">quiz</span>AI-GENERATED QUIZ</div>
+        <span class="panel-badge" id="quizBadge">0 questions</span>
+      </div>
+      <div class="panel-body" id="quizBody" style="max-height:400px;">
+        <div class="empty" id="quizEmpty">
+          <span class="material-symbols-outlined">edit_note</span>
+          <p>quizzes auto-generate from class summaries.</p>
+        </div>
+      </div>
+    </div>
+
   </div>
 
-  <h2>AI-Generated Quiz</h2>
-  <div id="quiz" class="box">
-    <p style="color: #999;">Quizzes will appear here after summaries...</p>
-  </div>
+  <div class="cursor">&gt;&gt;&gt;</div>
 
-  <script>
-    let questionCount = 0;
-    const protocol = window.location.protocol === 'https:' ? 'wss:' : 'ws:';
-    const wsUrl = `${protocol}//${location.host}/ws`;
+</div>
 
-    console.log("Connecting to WebSocket:", wsUrl);
+<script>
+  let qCount=0, sCount=0, qzCount=0;
 
-    const ws = new WebSocket(wsUrl);
+  function updateStats() {
+    document.getElementById("statQ").textContent = qCount;
+    document.getElementById("statS").textContent = sCount;
+    document.getElementById("statQz").textContent = qzCount;
+    document.getElementById("qBadge").textContent = qCount;
+    document.getElementById("sBadge").textContent = sCount + " summaries";
+    document.getElementById("statStatus").textContent = qCount + " received";
+  }
+
+  function escHtml(s) {
+    return String(s).replace(/&/g,"&amp;").replace(/</g,"&lt;").replace(/>/g,"&gt;").replace(/"/g,"&quot;");
+  }
+
+  function connect() {
+    const ws = new WebSocket(`${location.protocol==="https:"?"wss":"ws"}://${location.host}/ws`);
+    const bar = document.getElementById("connBar");
 
     ws.onopen = () => {
-      console.log("✅ Connected to backend");
-      const statusEl = document.getElementById("connectionStatus");
-      statusEl.innerText = "🟢 Connected to server";
-      statusEl.className = "connected";
+      bar.className = "connected";
+      document.getElementById("connText").textContent = "CONNECTED · REAL-TIME FEED ACTIVE";
     };
-
     ws.onclose = () => {
-      console.log("❌ Disconnected from backend");
-      const statusEl = document.getElementById("connectionStatus");
-      statusEl.innerText = "🔴 Disconnected from server";
-      statusEl.className = "disconnected";
+      bar.className = "disconnected";
+      document.getElementById("connText").textContent = "DISCONNECTED · RECONNECTING IN 5S…";
+      setTimeout(connect, 5000);
+    };
+    ws.onerror = () => {
+      bar.className = "disconnected";
+      document.getElementById("connText").textContent = "CONNECTION ERROR";
     };
 
-    ws.onerror = (error) => {
-      console.error("WebSocket error:", error);
-    };
-
-    ws.onmessage = (event) => {
-      console.log("Received message:", event.data);
-
+    ws.onmessage = (e) => {
       try {
-        const msg = JSON.parse(event.data);
-        console.log("Parsed message:", msg);
-
-        if (msg.event === "new_question") {
-          questionCount++;
-          document.getElementById("questionCount").innerText = questionCount;
-
-          const qDiv = document.getElementById("questions");
-          if (questionCount === 1) qDiv.innerHTML = "";
-
-          const questionItem = document.createElement("div");
-          questionItem.className = "question-item";
-          questionItem.innerHTML = `<b>${msg.data.user}:</b> ${msg.data.text}`;
-          qDiv.appendChild(questionItem);
-
-          qDiv.scrollTop = qDiv.scrollHeight;
-        }
-
-        if (msg.event === "summary") {
-          const sDiv = document.getElementById("summaries");
-          if (sDiv.querySelector('p[style*="color: #999"]')) sDiv.innerHTML = "";
-
-          const time = new Date().toLocaleTimeString();
-          const summaryItem = document.createElement("div");
-          summaryItem.className = "summary-item";
-
-          let markdownContent = msg.data.replace(/\[URGENT\]/gi, '<span class="urgent">[URGENT]</span>');
-          let htmlContent = marked.parse(markdownContent);
-
-          summaryItem.innerHTML = `<b>[${time}]</b>${htmlContent}`;
-          sDiv.appendChild(summaryItem);
-
-          sDiv.scrollTop = sDiv.scrollHeight;
-        }
-
-        if (msg.event === "quiz") {
-          const quizObj = JSON.parse(msg.data);
-          renderQuiz(quizObj);
-        }
-
-      } catch (error) {
-        console.error("Error parsing message:", error);
-      }
+        const msg = JSON.parse(e.data);
+        if (msg.event === "new_question") { qCount++; updateStats(); addQuestion(msg.data); }
+        else if (msg.event === "summary") { sCount++; updateStats(); addSummary(msg.data); }
+        else if (msg.event === "quiz") { try { renderQuiz(JSON.parse(msg.data)); } catch {} }
+      } catch {}
     };
+  }
 
-    // renderQuiz is outside ws.onmessage
-    function renderQuiz(quiz) {
-      const quizDiv = document.getElementById("quiz");
-      quizDiv.innerHTML = "";
+  connect();
 
-      const time = new Date().toLocaleTimeString();
+  function addQuestion(data) {
+    const body = document.getElementById("questionsBody");
+    document.getElementById("qEmpty")?.remove();
+    const initials = (data.user||"?").split(" ").map(w=>w[0]).join("").slice(0,2).toUpperCase();
+    const time = new Date().toLocaleTimeString([],{hour:"2-digit",minute:"2-digit"});
+    const item = document.createElement("div"); item.className = "q-item";
+    item.innerHTML = `<div class="q-avatar">${initials}</div><div><div class="q-meta"><span class="q-name">${escHtml(data.user||"Student")}</span><span class="q-time">${time}</span></div><div class="q-text">${escHtml(data.text||"")}</div></div>`;
+    body.appendChild(item);
+    body.scrollTop = body.scrollHeight;
+  }
 
-      // MCQs
-      if (quiz.mcq && quiz.mcq.length) {
-        quizDiv.innerHTML += `<div class="summary-item"><b>[${time}] Multiple Choice</b></div>`;
-        quiz.mcq.forEach((q, i) => {
-          quizDiv.innerHTML += `
-            <div class="question-item">
-              <b>MCQ ${i + 1}:</b> ${q.question}<br>
-              A) ${q.options.A}<br>
-              B) ${q.options.B}<br>
-              C) ${q.options.C}<br>
-              D) ${q.options.D}<br>
-              <em><b>Answer:</b> ${q.answer}</em>
-            </div>
-          `;
-        });
-      }
+  function addSummary(data) {
+    const body = document.getElementById("summariesBody");
+    document.getElementById("sEmpty")?.remove();
+    const time = new Date().toLocaleTimeString();
+    let md = data.replace(/\[URGENT\]/gi,'<span class="urgent">[URGENT]</span>');
+    const item = document.createElement("div"); item.className = "summary-entry";
+    item.innerHTML = `<div class="summary-ts">// SUMMARY · ${time}</div><div class="summary-body">${marked.parse(md)}</div>`;
+    body.appendChild(item);
+    body.scrollTop = body.scrollHeight;
+  }
 
-      // True/False
-      if (quiz.true_false && quiz.true_false.length) {
-        quizDiv.innerHTML += `<div class="summary-item"><b>True/False</b></div>`;
-        quiz.true_false.forEach((q, i) => {
-          quizDiv.innerHTML += `
-            <div class="question-item">
-              <b>T/F ${i + 1}:</b> ${q.question}<br>
-              <em><b>Answer:</b> ${q.answer ? "True" : "False"}</em>
-            </div>
-          `;
-        });
-      }
+  function renderQuiz(quiz) {
+    const body = document.getElementById("quizBody");
+    document.getElementById("quizEmpty")?.remove();
+    body.innerHTML = "";
+    let total = 0;
 
-      // Fill in the blanks
-      if (quiz.fill_blank && quiz.fill_blank.length) {
-        quizDiv.innerHTML += `<div class="summary-item"><b>Fill in the Blank</b></div>`;
-        quiz.fill_blank.forEach((q, i) => {
-          quizDiv.innerHTML += `
-            <div class="question-item">
-              <b>Blank ${i + 1}:</b> ${q.question}<br>
-              <em><b>Answer:</b> ${q.answer}</em>
-            </div>
-          `;
-        });
-      }
-
-      quizDiv.scrollTop = quizDiv.scrollHeight;
+    if (quiz.mcq?.length) {
+      total += quiz.mcq.length;
+      const sec = document.createElement("div"); sec.className = "quiz-section";
+      sec.innerHTML = `<div class="quiz-section-label">Multiple Choice · ${quiz.mcq.length} questions</div>`;
+      quiz.mcq.forEach((q,i) => {
+        const div = document.createElement("div"); div.className = "quiz-q";
+        div.innerHTML = `<div class="quiz-qtext">${i+1}. ${escHtml(q.question)}</div><div class="quiz-opts"><div class="quiz-opt"><span class="quiz-opt-key">A)</span><span>${escHtml(q.options?.A||"")}</span></div><div class="quiz-opt"><span class="quiz-opt-key">B)</span><span>${escHtml(q.options?.B||"")}</span></div><div class="quiz-opt"><span class="quiz-opt-key">C)</span><span>${escHtml(q.options?.C||"")}</span></div><div class="quiz-opt"><span class="quiz-opt-key">D)</span><span>${escHtml(q.options?.D||"")}</span></div></div><div class="quiz-ans">>> answer: ${escHtml(String(q.answer))}</div>`;
+        sec.appendChild(div);
+      });
+      body.appendChild(sec);
     }
-  </script>
+
+    if (quiz.true_false?.length) {
+      total += quiz.true_false.length;
+      const sec = document.createElement("div"); sec.className = "quiz-section";
+      sec.innerHTML = `<div class="quiz-section-label">True / False · ${quiz.true_false.length} questions</div>`;
+      quiz.true_false.forEach((q,i) => {
+        const div = document.createElement("div"); div.className = "quiz-q";
+        div.innerHTML = `<div class="quiz-qtext">${i+1}. ${escHtml(q.question)}</div><div class="quiz-ans">>> answer: ${q.answer?"TRUE":"FALSE"}</div>`;
+        sec.appendChild(div);
+      });
+      body.appendChild(sec);
+    }
+
+    if (quiz.fill_blank?.length) {
+      total += quiz.fill_blank.length;
+      const sec = document.createElement("div"); sec.className = "quiz-section";
+      sec.innerHTML = `<div class="quiz-section-label">Fill in the Blank · ${quiz.fill_blank.length} questions</div>`;
+      quiz.fill_blank.forEach((q,i) => {
+        const div = document.createElement("div"); div.className = "quiz-q";
+        div.innerHTML = `<div class="quiz-qtext">${i+1}. ${escHtml(q.question)}</div><div class="quiz-ans">>> answer: ${escHtml(q.answer)}</div>`;
+        sec.appendChild(div);
+      });
+      body.appendChild(sec);
+    }
+
+    qzCount++;
+    document.getElementById("quizBadge").textContent = total + " questions";
+    document.getElementById("statQz").textContent = qzCount;
+    body.scrollTop = body.scrollHeight;
+  }
+</script>
 </body>
 </html>

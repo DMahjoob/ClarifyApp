@@ -3,469 +3,405 @@
 <head>
 <meta charset="UTF-8">
 <meta name="viewport" content="width=device-width, initial-scale=1.0">
-<title>Student Q&A</title>
+<title>ClarifyApp - Study Assistant</title>
 <link rel="stylesheet" href="https://fonts.googleapis.com/css2?family=Material+Symbols+Outlined" />
+<link href="https://fonts.googleapis.com/css2?family=Space+Mono:wght@400;700&display=swap" rel="stylesheet">
 <script src="https://cdnjs.cloudflare.com/ajax/libs/marked/11.1.1/marked.min.js"></script>
 <style>
+  :root {
+    --bg: #f2ede8;
+    --surface: #ffffff;
+    --surface2: #e8e2db;
+    --card-bg: #f07272;
+    --border: rgba(60,45,35,0.12);
+    --accent: #e8185d;
+    --accent-dark: #c4134f;
+    --text: #2a2018;
+    --text-muted: #7a6e66;
+    --text-dim: #5c5048;
+    --mono: 'Space Mono', monospace;
+  }
+
+  * { box-sizing: border-box; margin: 0; padding: 0; }
+
   body {
-    font-family: Arial, sans-serif;
-    max-width: 1400px;
-    margin: 50px auto;
-    padding: 20px;
+    font-family: var(--mono);
+    background-color: var(--bg);
+    background-image:
+      linear-gradient(rgba(60,45,35,0.05) 1px, transparent 1px),
+      linear-gradient(90deg, rgba(60,45,35,0.05) 1px, transparent 1px);
+    background-size: 48px 48px;
+    color: var(--text);
+    min-height: 100vh;
   }
 
-  h1 { text-align: center; }
-
-  /* Centered question box */
-  #questionForm {
-    max-width: 600px;
-    margin: 0 auto 40px auto;
+  nav {
+    position: sticky; top: 0; z-index: 100;
+    display: flex; align-items: center; justify-content: space-between;
+    padding: 0 2.5rem; height: 56px;
+    background: rgba(242,237,232,0.92);
+    backdrop-filter: blur(16px);
+    border-bottom: 1px solid var(--border);
   }
 
-  /* Bigger inputs and text */
-  #questionForm input,
-  #questionForm textarea {
-    width: 100%;
-    padding: 15px;          /* increased from 10px */
-    margin: 8px 0;
-    font-size: 18px;        /* increased font size */
-    box-sizing: border-box;
-    border-radius: 6px;     /* optional, makes it look nicer */
-    border: 1px solid #ccc;
+  .nav-brand { font-size: 0.78rem; color: var(--text-dim); letter-spacing: 0.05em; }
+
+  .nav-links { display: flex; gap: 2rem; }
+  .nav-links a { font-size: 0.75rem; color: var(--text-muted); text-decoration: none; letter-spacing: 0.06em; transition: color 0.15s; }
+  .nav-links a:hover { color: var(--text); }
+  .nav-links a.active { color: var(--accent); }
+
+  .page { max-width: 860px; margin: 0 auto; padding: 3rem 2rem 5rem; }
+
+  .section-heading { font-size: clamp(1.6rem, 4vw, 2.2rem); font-weight: 700; margin-bottom: 0.4rem; color: var(--text); }
+  .section-heading .pink { color: var(--accent); }
+  .section-sub { font-size: 0.8rem; color: var(--text-muted); margin-bottom: 2rem; letter-spacing: 0.04em; }
+
+  .form-card {
+    background: var(--surface);
+    border: 1px solid var(--border);
+    border-left: 3px solid var(--accent);
+    border-radius: 4px;
+    padding: 1.5rem;
+    margin-bottom: 1.25rem;
   }
 
-  #questionForm textarea {
-    height: 140px;          /* increased height from 100px */
-    padding-right: 40px;
+  .name-row {
+    display: flex; align-items: center; gap: 10px;
+    padding-bottom: 1rem; margin-bottom: 1rem;
+    border-bottom: 1px solid var(--border);
   }
 
-  button {
-    background-color: #4CAF50;
-    color: white;
-    padding: 10px 20px;
-    border: none;
-    cursor: pointer;
-    font-size: 16px;
+  .name-label { font-size: 0.7rem; color: var(--text-muted); letter-spacing: 0.1em; white-space: nowrap; }
+
+  .name-input {
+    flex: 1; background: transparent; border: none; outline: none;
+    font-family: var(--mono); font-size: 0.85rem; color: var(--text);
   }
+  .name-input::placeholder { color: var(--text-muted); }
 
-  button:hover { background-color: #45a049; }
+  .textarea-wrap { position: relative; }
 
-  #status { margin-top: 10px; font-weight: bold; text-align: center; }
-
-  .textarea-wrapper { position: relative; width: 100%; }
-
-  .corner-btn {
-    position: absolute;
-    top: 110px;
-    right: 8px;
-    width: 30px;
-    height: 30px;
-    border: none;
-    border-radius: 50%;
-    background: #e0e0e0;
-    color: black;
-    font-size: 14px;
-    line-height: 26px;
-    cursor: pointer;
-    display: flex;
-    align-items: center;
-    justify-content: center;
-    z-index: 5;
-    appearance: none;
+  .q-textarea {
+    width: 100%; background: transparent; border: none; outline: none;
+    font-family: var(--mono); font-size: 0.88rem; color: var(--text);
+    resize: none; min-height: 90px; line-height: 1.65; padding-right: 38px;
   }
+  .q-textarea::placeholder { color: var(--text-muted); }
 
-  .corner-btn:hover { background: #d5d5d5; }
-  .corner-btn.listening { background: #ffdddd; animation: pulse 1.2s infinite; }
-  .material-symbols-outlined { font-size: 20px; display: block; line-height: 1; }
-  @keyframes pulse { 0% { transform: scale(1); } 50% { transform: scale(1.08); } 100% { transform: scale(1); } }
-
-  /* Pyramid layout for results */
-  #resultContainer {
-    display: flex;
-    justify-content: center;
-    gap: 40px;
-    flex-wrap: wrap;
-    margin-top: 20px;
+  .mic-btn {
+    position: absolute; bottom: 4px; right: 4px;
+    width: 30px; height: 30px;
+    background: var(--surface2); border: 1px solid var(--border); border-radius: 4px;
+    color: var(--text-muted); cursor: pointer;
+    display: flex; align-items: center; justify-content: center;
+    transition: all 0.15s;
   }
+  .mic-btn:hover { border-color: var(--accent); color: var(--accent); }
+  .mic-btn.listening { background: rgba(232,24,93,0.08); border-color: var(--accent); color: var(--accent); animation: pulse-mic 1.2s infinite; }
+  .mic-btn .material-symbols-outlined { font-size: 16px; }
+  @keyframes pulse-mic { 0%,100% { box-shadow: 0 0 0 0 rgba(232,24,93,0.3); } 50% { box-shadow: 0 0 0 5px rgba(232,24,93,0); } }
 
-  #recommendations, #aiAnswer {
-    flex: 1 1 45%; /* grow, shrink, base 45% */
-    min-width: 400px;
-    max-width: 600px;
-    padding: 20px;
-    border-radius: 8px;
-    box-sizing: border-box;
+  .action-row { display: flex; align-items: center; gap: 0.75rem; margin-top: 1.25rem; flex-wrap: wrap; }
+
+  .btn {
+    font-family: var(--mono); font-size: 0.77rem;
+    padding: 9px 18px; border-radius: 4px; border: 1px solid transparent;
+    cursor: pointer; letter-spacing: 0.05em; transition: all 0.15s;
+    display: inline-flex; align-items: center; gap: 6px;
   }
+  .btn .material-symbols-outlined { font-size: 15px; }
 
-  #recommendations { background: #f5f5f5; }
-  #aiAnswer { background: #ffffff; border-left: 4px solid #2196F3; }
+  .btn-primary { background: var(--accent); color: white; border-color: var(--accent); }
+  .btn-primary:hover { background: var(--accent-dark); border-color: var(--accent-dark); transform: translateY(-1px); box-shadow: 0 4px 12px rgba(232,24,93,0.25); }
 
-  /* Slide cards */
-  .slide-card {
-    background: white;
-    padding: 15px;
-    margin: 10px 0;
-    border-radius: 6px;
-    border-left: 4px solid #4CAF50;
-    box-shadow: 0 2px 4px rgba(0,0,0,0.1);
+  .btn-outline { background: transparent; color: var(--text-dim); border-color: var(--border); }
+  .btn-outline:hover { border-color: var(--accent); color: var(--accent); }
+
+  .diff-select {
+    font-family: var(--mono); font-size: 0.77rem;
+    background: var(--surface); border: 1px solid var(--border);
+    color: var(--text-dim); padding: 9px 14px; border-radius: 4px;
+    outline: none; cursor: pointer; transition: border-color 0.15s;
   }
+  .diff-select:focus { border-color: var(--accent); }
 
-  .slide-card h4 { margin: 0 0 8px 0; color: #2c5f2d; }
-  .slide-info { font-size: 14px; color: #666; margin: 5px 0; }
-  .slide-score { display: inline-block; background: #e8f5e9; padding: 3px 8px; border-radius: 4px; font-size: 12px; font-weight: bold; color: #2e7d32; }
-  .keywords { margin-top: 8px; font-size: 13px; }
-  .keyword-tag { display: inline-block; background: #e3f2fd; padding: 2px 8px; margin: 2px; border-radius: 3px; font-size: 12px; color: #1565c0; }
-  
-  /* Quiz button */
-  .quiz-btn {
-    background-color: #1e88e5;
-    color: white;
-    padding: 12px 20px;
-    border: none;
-    cursor: pointer;
-    font-size: 16px;
-    border-radius: 6px;
-    font-weight: bold;
+  .status { font-size: 0.74rem; letter-spacing: 0.06em; min-height: 22px; margin: 0.75rem 0; color: var(--text-muted); }
+  .status.ok { color: #2a7a4b; }
+  .status.err { color: var(--accent); }
+  .status.pending { color: #b07020; }
+
+  .cursor { font-size: 0.82rem; color: var(--text-muted); margin: 0.5rem 0 2rem; }
+  .cursor::after { content: '▌'; color: var(--accent); animation: blink 1s step-end infinite; }
+  @keyframes blink { 0%,100% { opacity:1; } 50% { opacity:0; } }
+
+  /* ── RESULTS ── */
+  .results-grid { display: grid; grid-template-columns: 1fr 1fr; gap: 1.25rem; }
+  @media (max-width: 680px) { .results-grid { grid-template-columns: 1fr; } }
+
+  .result-panel { display: none; border-radius: 4px; overflow: hidden; animation: fade-up 0.3s ease both; }
+  .result-panel.visible { display: block; }
+  .result-panel.full { grid-column: 1 / -1; }
+
+  @keyframes fade-up { from { opacity:0; transform:translateY(8px); } to { opacity:1; transform:translateY(0); } }
+
+  .panel-head {
+    background: var(--card-bg); padding: 0.75rem 1.1rem;
+    display: flex; align-items: center; justify-content: space-between;
   }
+  .panel-head-title { font-size: 0.72rem; font-weight: 700; color: white; letter-spacing: 0.08em; display: flex; align-items: center; gap: 6px; }
+  .panel-head-title .material-symbols-outlined { font-size: 14px; }
+  .panel-count { font-size: 0.66rem; color: rgba(255,255,255,0.75); letter-spacing: 0.06em; }
 
-  .quiz-btn:hover {
-    background-color: #1565c0;
+  .panel-body { background: var(--surface); border: 1px solid var(--border); border-top: none; padding: 1.1rem; }
+
+  /* slides */
+  .slide-card { padding: 0.85rem 0; border-bottom: 1px solid var(--border); }
+  .slide-card:last-child { border-bottom: none; }
+  .slide-top { display: flex; justify-content: space-between; align-items: flex-start; gap: 8px; margin-bottom: 3px; }
+  .slide-title { font-size: 0.82rem; font-weight: 700; color: var(--text); line-height: 1.4; }
+  .score-pill { font-size: 0.64rem; color: white; background: var(--accent); border-radius: 3px; padding: 2px 7px; white-space: nowrap; flex-shrink: 0; }
+  .slide-deck { font-size: 0.68rem; color: var(--text-muted); margin-bottom: 4px; }
+  .slide-summary { font-size: 0.77rem; color: var(--text-dim); line-height: 1.5; margin-bottom: 5px; }
+  .kw-row { display: flex; flex-wrap: wrap; gap: 4px; }
+  .kw { font-size: 0.61rem; color: var(--accent); border: 1px solid rgba(232,24,93,0.3); border-radius: 3px; padding: 1px 6px; }
+
+  /* ai answer */
+  .ai-ts { font-size: 0.64rem; color: var(--text-muted); letter-spacing: 0.08em; margin-bottom: 0.6rem; }
+  .ai-body { font-size: 0.82rem; line-height: 1.7; color: var(--text-dim); }
+  .ai-body strong { color: var(--text); }
+  .ai-body code { font-family: var(--mono); font-size: 0.8em; background: var(--surface2); border: 1px solid var(--border); border-radius: 3px; padding: 1px 5px; color: var(--accent); }
+  .ai-body pre { background: var(--surface2); border: 1px solid var(--border); border-radius: 4px; padding: 0.85rem; overflow-x: auto; margin: 0.6rem 0; }
+  .ai-body pre code { background: none; border: none; padding: 0; }
+  .urgent { color: var(--accent); font-weight: 700; background: rgba(232,24,93,0.08); border-radius: 3px; padding: 1px 5px; }
+
+  /* quiz */
+  .quiz-q { padding: 0.85rem 0; border-bottom: 1px solid var(--border); }
+  .quiz-q:last-child { border-bottom: none; }
+  .quiz-num { font-size: 0.64rem; color: var(--accent); letter-spacing: 0.1em; margin-bottom: 4px; }
+  .quiz-qtext { font-size: 0.82rem; color: var(--text); font-weight: 700; margin-bottom: 8px; line-height: 1.45; }
+  .quiz-opt { display: flex; gap: 8px; font-size: 0.77rem; color: var(--text-dim); padding: 3px 0; }
+  .quiz-opt-letter { color: var(--accent); font-weight: 700; min-width: 18px; flex-shrink: 0; }
+  .quiz-ans { margin-top: 8px; padding-top: 8px; border-top: 1px solid var(--border); font-size: 0.71rem; color: #2a7a4b; letter-spacing: 0.05em; display: none; }
+  .quiz-reveal { font-family: var(--mono); font-size: 0.68rem; margin-top: 8px; padding: 5px 12px; background: transparent; color: var(--text-muted); border: 1px solid var(--border); border-radius: 3px; cursor: pointer; letter-spacing: 0.05em; transition: border-color 0.15s, color 0.15s; }
+  .quiz-reveal:hover { border-color: var(--accent); color: var(--accent); }
+
+  /* live panel */
+  #livePanel {
+    position: fixed; bottom: 1.5rem; right: 1.5rem;
+    width: 300px; max-height: 260px;
+    background: var(--surface); border: 1px solid var(--border); border-left: 3px solid var(--accent);
+    border-radius: 4px; padding: 1rem; overflow-y: auto; z-index: 50;
+    display: none; animation: fade-up 0.3s ease;
   }
+  #livePanel.visible { display: block; }
+  .live-head { font-size: 0.67rem; color: var(--accent); letter-spacing: 0.1em; margin-bottom: 0.5rem; display: flex; align-items: center; gap: 6px; }
+  .live-dot { width: 6px; height: 6px; border-radius: 50%; background: var(--accent); animation: blink 1.2s step-end infinite; }
 
-  #quizContainer {
-  flex: 1 1 100%;
-  max-width: 900px;
-  background: #fff8e1;
-  padding: 20px;
-  border-radius: 8px;
-  border-left: 4px solid #ffb300;
-}
+  ::-webkit-scrollbar { width: 4px; }
+  ::-webkit-scrollbar-track { background: transparent; }
+  ::-webkit-scrollbar-thumb { background: var(--border); border-radius: 2px; }
 
-.quiz-question {
-  margin-bottom: 18px;
-  padding: 15px;
-  background: white;
-  border-radius: 6px;
-  box-shadow: 0 2px 4px rgba(0,0,0,0.08);
-}
-
-.quiz-question h4 {
-  margin: 0 0 10px 0;
-}
-
-.quiz-option {
-  margin-left: 20px;
-  font-size: 15px;
-}
-
-.quiz-answer {
-  margin-top: 8px;
-  font-size: 14px;
-  color: #2e7d32;
-  font-weight: bold;
-}
-
+  @media (max-width: 600px) {
+    .page { padding: 2rem 1rem 4rem; }
+    .action-row { flex-direction: column; align-items: stretch; }
+    .btn { justify-content: center; }
+    #livePanel { display: none !important; }
+  }
 </style>
 </head>
-  <body>
+<body>
 
-    <h1>Ask a Question</h1>
+<nav>
+  <span class="nav-brand">ClarifyApp</span>
+  <div class="nav-links">
+    <a href="/" class="active">student</a>
+    <a href="/professor.html">professor</a>
+  </div>
+</nav>
 
-    <form id="questionForm">
-      <input type="text" id="user" placeholder="Your name" required>
-      <div class="textarea-wrapper">
-        <textarea id="text" placeholder="Type your question..." required></textarea>
-        <button type="button" id="micBtn" class="corner-btn" title="Voice input">
+<div class="page">
+
+  <h1 class="section-heading">What do you want to <span class="pink">clarify?</span>:</h1>
+  <p class="section-sub">&gt; Responses based on course slides and materials.</p>
+
+  <form id="questionForm">
+    <div class="form-card">
+      <div class="name-row">
+        <span class="name-label">NAME (optional): </span>
+        <input type="text" id="user" class="name-input" required autocomplete="off">
+      </div>
+      <div class="textarea-wrap">
+        <textarea id="text" class="q-textarea" placeholder="Ask your question here..." required rows="4"></textarea>
+        <button type="button" id="micBtn" class="mic-btn" title="Voice input">
           <span class="material-symbols-outlined" id="micIcon">mic</span>
         </button>
       </div>
-      <div style="display: flex; gap: 10px; align-items: center; margin-top: 10px;">
-        <button type="submit">Submit Question</button>
+    </div>
 
-        <button type="button" id="generateQuizBtn" class="quiz-btn">
-          Generate Quiz
-        </button>
-        <select id="difficulty" 
-          style="padding: 10px; font-size: 16px; border-radius: 6px;">
-          <option value="" disabled selected>Difficulty</option>
-          <option value="easy">Easy</option>
-          <option value="medium">Medium</option>
-          <option value="hard">Hard</option>
-        </select>
+    <div class="action-row">
+      <button type="submit" class="btn btn-primary">
+        <span class="material-symbols-outlined">send</span>
+        submit question
+      </button>
+      <button type="button" id="generateQuizBtn" class="btn btn-outline">
+        <span class="material-symbols-outlined">quiz</span>
+        generate quiz
+      </button>
+      <select id="difficulty" class="diff-select">
+        <option value="" disabled selected>difficulty</option>
+        <option value="easy">easy</option>
+        <option value="medium">medium</option>
+        <option value="hard">hard</option>
+      </select>
+    </div>
+  </form>
+
+  <p id="status" class="status"></p>
+  <div class="cursor">&gt;&gt;&gt;</div>
+
+  <div class="results-grid">
+    <div id="recommendations" class="result-panel">
+      <div class="panel-head">
+        <div class="panel-head-title"><span class="material-symbols-outlined">library_books</span>RECOMMENDED SLIDES</div>
+        <span class="panel-count" id="slideCount"></span>
       </div>
-    </form>
+      <div class="panel-body" id="recommendationsList"></div>
+    </div>
 
-    <p id="status"></p>
-
-    <div id="resultContainer">
-      <div id="recommendations" style="display:none">
-        <h3>📚 Recommended Slides</h3>
-        <div id="recommendationsList"></div>
+    <div id="aiAnswer" class="result-panel">
+      <div class="panel-head">
+        <div class="panel-head-title"><span class="material-symbols-outlined">psychology</span>AI ANSWER</div>
       </div>
-
-      <div id="aiAnswer" style="display:none">
-        <h3>💡 Intelligent TA Answer (based on course material)</h3>
-        <p id="aiAnswerText" style="margin:0; white-space: pre-wrap;"></p>
-      </div>
-
-      <div id="quizContainer" style="display:none">
-        <h3>📝 Generated Quiz</h3>
-        <div id="quizContent"></div>
+      <div class="panel-body">
+        <div class="ai-ts" id="aiTimestamp"></div>
+        <div class="ai-body" id="aiAnswerText"></div>
       </div>
     </div>
 
-    <script>
-      const micBtn = document.getElementById("micBtn");
-      const textArea = document.getElementById("text");
-      const statusEl = document.getElementById("status");
-      const micIcon = document.getElementById("micIcon");
-      const recommendationsDiv = document.getElementById("recommendations");
-      const recommendationsList = document.getElementById("recommendationsList");
-      const aiAnswerDiv = document.getElementById("aiAnswer");
-      const aiAnswerText = document.getElementById("aiAnswerText");
+    <div id="quizContainer" class="result-panel full">
+      <div class="panel-head">
+        <div class="panel-head-title"><span class="material-symbols-outlined">edit_note</span>GENERATED QUIZ</div>
+        <span class="panel-count" id="quizCount"></span>
+      </div>
+      <div class="panel-body" id="quizContent"></div>
+    </div>
+  </div>
 
-      const SpeechRecognition = window.SpeechRecognition || window.webkitSpeechRecognition;
-      let recognition = null;
-      let isListening = false;
+</div>
 
-      if (SpeechRecognition) {
-        recognition = new SpeechRecognition();
-        recognition.lang = "en-US";
-        recognition.interimResults = true;
-        recognition.continuous = true;
+<div id="livePanel">
+  <div class="live-head"><span class="live-dot"></span>LIVE CLASS UPDATES</div>
+  <div id="liveContent" style="font-size:0.77rem;color:var(--text-dim);line-height:1.6;"></div>
+</div>
 
-        let finalTranscript = "";
+<script>
+  const micBtn = document.getElementById("micBtn");
+  const textArea = document.getElementById("text");
+  const statusEl = document.getElementById("status");
+  const micIcon = document.getElementById("micIcon");
+  const recommendationsDiv = document.getElementById("recommendations");
+  const recommendationsList = document.getElementById("recommendationsList");
+  const aiAnswerDiv = document.getElementById("aiAnswer");
+  const aiAnswerText = document.getElementById("aiAnswerText");
+  const quizContainer = document.getElementById("quizContainer");
+  const quizContent = document.getElementById("quizContent");
 
-        recognition.onstart = () => {
-          isListening = true;
-          micBtn.classList.add("listening");
-          micIcon.textContent = "stop_circle";
-          statusEl.innerText = "Listening...";
-          statusEl.style.color = "green";
-        };
+  function setStatus(msg, type='') { statusEl.textContent = '> ' + msg; statusEl.className = 'status ' + type; }
 
-        recognition.onresult = (event) => {
-          let interim = "";
-          for (let i = event.resultIndex; i < event.results.length; i++) {
-            const transcript = event.results[i][0].transcript;
-            if (event.results[i].isFinal) {
-              finalTranscript += transcript + " ";
-            } else {
-              interim += transcript;
-            }
-          }
-          textArea.value = finalTranscript + interim;
-        };
+  const SR = window.SpeechRecognition || window.webkitSpeechRecognition;
+  let recognition = null, isListening = false;
+  if (SR) {
+    recognition = new SR();
+    recognition.lang = "en-US"; recognition.interimResults = true; recognition.continuous = true;
+    let final = "";
+    recognition.onstart = () => { isListening=true; micBtn.classList.add("listening"); micIcon.textContent="stop_circle"; setStatus("Listening…"); };
+    recognition.onresult = (e) => {
+      let interim = "";
+      for (let i=e.resultIndex;i<e.results.length;i++) { const t=e.results[i][0].transcript; if(e.results[i].isFinal) final+=t+" "; else interim+=t; }
+      textArea.value = final + interim;
+    };
+    recognition.onerror = (e) => setStatus("voice error: "+e.error,"err");
+    recognition.onend = () => { isListening=false; micBtn.classList.remove("listening"); micIcon.textContent="mic"; setStatus(""); };
+    micBtn.addEventListener("click", () => { if(!isListening){final=textArea.value.trim()?textArea.value+" ":"";recognition.start();}else recognition.stop(); });
+  } else { micBtn.disabled=true; }
 
-        recognition.onerror = (e) => {
-          statusEl.innerText = "❌ Voice error: " + e.error;
-          statusEl.style.color = "red";
-        };
+  function displayRecommendations(recs) {
+    if (!recs?.length) { recommendationsDiv.classList.remove("visible"); return; }
+    recommendationsList.innerHTML = "";
+    document.getElementById("slideCount").textContent = recs.length + " matches";
+    recs.forEach((s,i) => {
+      const kws = s.keywords?.length ? `<div class="kw-row">${s.keywords.map(k=>`<span class="kw">${k}</span>`).join("")}</div>` : "";
+      const card = document.createElement("div"); card.className="slide-card";
+      card.innerHTML = `<div class="slide-top"><div class="slide-title">${i+1}. ${s.title}</div><div class="score-pill">${(s.score*100).toFixed(0)}%</div></div><div class="slide-deck">${s.deck_name} · slide ${s.slide_number}</div>${s.summary?`<div class="slide-summary">${s.summary}</div>`:""}${kws}`;
+      recommendationsList.appendChild(card);
+    });
+    recommendationsDiv.classList.add("visible");
+  }
 
-        recognition.onend = () => {
-          isListening = false;
-          micBtn.classList.remove("listening");
-          micIcon.textContent = "mic";
-          statusEl.innerText = "Voice input stopped.";
-          statusEl.style.color = "gray";
-        };
+  function renderQuiz(questions) {
+    quizContent.innerHTML = "";
+    document.getElementById("quizCount").textContent = questions.length + " questions";
+    const L = ["A","B","C","D","E"];
+    questions.forEach((q,i) => {
+      const opts = q.options?.length ? q.options.map((o,j)=>`<div class="quiz-opt"><span class="quiz-opt-letter">${L[j]})</span><span>${o.replace(/^[A-E]\.\s*/i,"")}</span></div>`).join("") : "";
+      const div = document.createElement("div"); div.className="quiz-q";
+      const ansId = `quiz-ans-${i}`;
+      const ansBlock = q.answer ? `<div class="quiz-ans" id="${ansId}">>> answer: ${q.answer}</div><button type="button" class="quiz-reveal" onclick="const el=document.getElementById('${ansId}');if(el.style.display==='block'){el.style.display='none';this.textContent='show answer';}else{el.style.display='block';this.textContent='hide answer';}">show answer</button>` : "";
+      div.innerHTML = `<div class="quiz-num">QUESTION ${i+1}</div><div class="quiz-qtext">${q.question}</div>${opts}${ansBlock}`;
+      quizContent.appendChild(div);
+    });
+    quizContainer.classList.add("visible");
+  }
 
-        micBtn.addEventListener("click", () => {
-          if (!isListening) {
-            finalTranscript = textArea.value.trim() ? textArea.value + " " : "";
-            recognition.start();
-          } else {
-            recognition.stop();
-          }
-        });
-      } else {
-        micBtn.disabled = true;
-        micBtn.title = "Voice input not supported in this browser";
-        statusEl.innerText = "⚠️ Voice input not supported in this browser.";
-        statusEl.style.color = "orange";
-      }
-
-      function displayRecommendations(recommendations) {
-        if (!recommendations || recommendations.length === 0) {
-          recommendationsDiv.classList.remove("visible");
-          return;
+  document.getElementById("questionForm").addEventListener("submit", async (e) => {
+    e.preventDefault();
+    const user=document.getElementById("user").value, text=textArea.value;
+    aiAnswerDiv.classList.remove("visible"); recommendationsDiv.classList.remove("visible"); quizContainer.classList.remove("visible");
+    setStatus("thinking…","pending");
+    try {
+      const res = await fetch("/api/ask",{method:"POST",headers:{"Content-Type":"application/json"},body:JSON.stringify({user,text})});
+      const data = await res.json();
+      if (res.ok) {
+        setStatus("answer ready","ok");
+        if (data.slide_recommendation) displayRecommendations(data.slide_recommendation);
+        if (data.rag_response) {
+          let md = data.rag_response.replace(/\[URGENT\]/gi,'<span class="urgent">[URGENT]</span>');
+          document.getElementById("aiTimestamp").textContent = "// " + new Date().toLocaleTimeString();
+          aiAnswerText.innerHTML = marked.parse(md);
+          aiAnswerDiv.classList.add("visible");
         }
+      } else { setStatus("error: "+(data.detail||"unknown"),"err"); }
+    } catch(err) { setStatus("network error: "+err.message,"err"); }
+  });
 
-        recommendationsList.innerHTML = "";
+  document.getElementById("generateQuizBtn").addEventListener("click", async () => {
+    const user=document.getElementById("user").value, text=textArea.value, difficulty=document.getElementById("difficulty").value;
+    if (!difficulty) { setStatus("select a difficulty first","pending"); return; }
+    recommendationsDiv.classList.remove("visible"); quizContainer.classList.remove("visible"); aiAnswerDiv.classList.remove("visible");
+    setStatus("generating quiz…","pending");
+    try {
+      const res = await fetch("/api/generate-quiz",{method:"POST",headers:{"Content-Type":"application/json"},body:JSON.stringify({user,text,difficulty})});
+      const data = await res.json();
+      if (res.ok) { setStatus("quiz ready","ok"); renderQuiz(data.questions); }
+      else { setStatus("quiz generation failed","err"); }
+    } catch(err) { setStatus("network error: "+err.message,"err"); }
+  });
 
-        recommendations.forEach((slide, index) => {
-          const card = document.createElement("div");
-          card.className = "slide-card";
-
-          const title = document.createElement("h4");
-          title.textContent = `${index + 1}. ${slide.title}`;
-          card.appendChild(title);
-
-          const deckInfo = document.createElement("div");
-          deckInfo.className = "slide-info";
-          deckInfo.innerHTML = `<strong>Deck:</strong> ${slide.deck_name} | <strong>Slide:</strong> ${slide.slide_number} | <span class="slide-score">Match: ${(slide.score * 100).toFixed(1)}%</span>`;
-          card.appendChild(deckInfo);
-
-          if (slide.summary) {
-            const summary = document.createElement("div");
-            summary.className = "slide-info";
-            summary.textContent = slide.summary;
-            card.appendChild(summary);
-          }
-
-          if (slide.keywords && slide.keywords.length > 0) {
-            const keywordsDiv = document.createElement("div");
-            keywordsDiv.className = "keywords";
-            keywordsDiv.innerHTML = "<strong>Keywords:</strong> ";
-            slide.keywords.forEach(keyword => {
-              const tag = document.createElement("span");
-              tag.className = "keyword-tag";
-              tag.textContent = keyword;
-              keywordsDiv.appendChild(tag);
-            });
-            card.appendChild(keywordsDiv);
-          }
-
-          recommendationsList.appendChild(card);
-        });
-
-        recommendationsDiv.classList.add("visible");
-      }
-
-      document.getElementById("questionForm").addEventListener("submit", async (e) => {
-        e.preventDefault();
-
-        const user = document.getElementById("user").value;
-        const text = textArea.value;
-
-        aiAnswerDiv.style.display = "none";
-        aiAnswerText.textContent = "";
-        quizContainer.style.display = "none";
-        quizContent.innerHTML = "";
-        statusEl.innerText = "Sending...";
-        statusEl.style.color = "blue";
-
-        try {
-          const res = await fetch("/api/ask", {
-            method: "POST",
-            headers: { "Content-Type": "application/json" },
-            body: JSON.stringify({ user, text })
-          });
-
-          const data = await res.json();
-
-          if (res.ok) {
-            statusEl.innerText = "✅ Question submitted!";
-            statusEl.style.color = "green";
-
-            if (data.slide_recommendation) {
-              displayRecommendations(data.slide_recommendation);
-              recommendationsDiv.style.display = "block";
-
-            }
-
-            if (data.rag_response) {
-              const time = new Date().toLocaleTimeString();
-              // Convert Markdown to HTML
-              let markdownContent = data.rag_response.replace(/\[URGENT\]/gi, '<span class="urgent">[URGENT]</span>');
-              let htmlContent = marked.parse(markdownContent);
-
-              aiAnswerText.innerHTML = `<b>[${time}]</b> ${htmlContent}`;
-              aiAnswerDiv.style.display = "block";
-            } else {
-              aiAnswerDiv.style.display = "none";
-            }
-
-          } else {
-            statusEl.innerText = "❌ Failed to submit: " + (data.detail || "Unknown error");
-            statusEl.style.color = "red";
-          }
-
-        } catch (error) {
-          console.error("Error submitting question:", error);
-          statusEl.innerText = "❌ Network error: " + error.message;
-          statusEl.style.color = "red";
-        }
-      });
-
-      // Quiz Information
-      const quizBtn = document.getElementById("generateQuizBtn");
-      const difficultySelect = document.getElementById("difficulty");
-      const quizContainer = document.getElementById("quizContainer");
-      const quizContent = document.getElementById("quizContent");
-
-
-      quizBtn.addEventListener("click", async () => {
-        recommendationsDiv.style.display = "none";
-        quizContainer.style.display = "none";
-        quizContent.innerHTML = "";
-        aiAnswerDiv.style.display = "none";
-        aiAnswerText.textContent = "";
-        statusEl.innerText = "Sending...";
-        statusEl.style.color = "blue";
-        const user = document.getElementById("user").value;
-        const text = textArea.value;
-        const difficulty = difficultySelect.value;
-
-        if (!difficulty) {
-          statusEl.innerText = "⚠️ Please select a difficulty.";
-          statusEl.style.color = "orange";
-          return;
-        }
-
-        statusEl.innerText = "Generating quiz...";
-        statusEl.style.color = "#1e88e5";
-
-        try {
-          const res = await fetch("/api/generate-quiz", {
-            method: "POST",
-            headers: { "Content-Type": "application/json" },
-            body: JSON.stringify({
-              user,
-              text,
-              difficulty
-            })
-          });
-
-          const data = await res.json();
-
-          if (res.ok) {
-            statusEl.innerText = "✅ Quiz generated!";
-            statusEl.style.color = "green";
-
-            quizContent.innerHTML = "";
-            quizContainer.style.display = "block";
-
-            data.questions.forEach((q, index) => {
-              const div = document.createElement("div");
-              div.className = "quiz-question";
-
-              let html = `<h4>Q${index + 1}. ${q.question}</h4>`;
-
-              if (q.options && q.options.length > 0) {
-                q.options.forEach(opt => {
-                  html += `<div class="quiz-option">• ${opt}</div>`;
-                });
-              }
-
-              if (q.answer) {
-                html += `<div class="quiz-answer"> Answer: ${q.answer}</div>`;
-              }
-
-              div.innerHTML = html;
-              quizContent.appendChild(div);
-            });
-
-          } else {
-            statusEl.innerText = "❌ Quiz generation failed.";
-            statusEl.style.color = "red";
-          }
-        } catch (err) {
-          statusEl.innerText = "❌ Network error: " + err.message;
-          statusEl.style.color = "red";
-        }
-      });
-
-    </script>
-  </body>
+  function connectWS() {
+    const ws = new WebSocket(`${location.protocol==="https:"?"wss":"ws"}://${location.host}/ws`);
+    const livePanel=document.getElementById("livePanel"), liveContent=document.getElementById("liveContent");
+    ws.onmessage = (e) => {
+      try {
+        const msg=JSON.parse(e.data);
+        livePanel.classList.add("visible");
+        if (msg.event==="summary") { liveContent.innerHTML=marked.parse(msg.data.replace(/\[URGENT\]/gi,'<span class="urgent">[URGENT]</span>')); }
+        else if (msg.event==="quiz") { try{const q=JSON.parse(msg.data);if(q.questions){renderQuiz(q.questions);setStatus("live quiz received","ok");}}catch{} }
+      } catch {}
+    };
+    ws.onclose = () => setTimeout(connectWS,5000);
+  }
+  connectWS();
+</script>
+</body>
 </html>
