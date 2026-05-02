@@ -186,17 +186,6 @@
   .quiz-reveal { font-family: var(--mono); font-size: 0.68rem; margin-top: 8px; padding: 5px 12px; background: transparent; color: var(--text-muted); border: 1px solid var(--border); border-radius: 3px; cursor: pointer; letter-spacing: 0.05em; transition: border-color 0.15s, color 0.15s; }
   .quiz-reveal:hover { border-color: var(--accent); color: var(--accent); }
 
-  /* live panel */
-  #livePanel {
-    position: fixed; bottom: 1.5rem; right: 1.5rem;
-    width: 300px; max-height: 260px;
-    background: var(--surface); border: 1px solid var(--border); border-left: 3px solid var(--accent);
-    border-radius: 4px; padding: 1rem; overflow-y: auto; z-index: 50;
-    display: none; animation: fade-up 0.3s ease;
-  }
-  #livePanel.visible { display: block; }
-  .live-head { font-size: 0.67rem; color: var(--accent); letter-spacing: 0.1em; margin-bottom: 0.5rem; display: flex; align-items: center; gap: 6px; }
-  .live-dot { width: 6px; height: 6px; border-radius: 50%; background: var(--accent); animation: blink 1.2s step-end infinite; }
 
   ::-webkit-scrollbar { width: 4px; }
   ::-webkit-scrollbar-track { background: transparent; }
@@ -206,7 +195,6 @@
     .page { padding: 2rem 1rem 4rem; }
     .action-row { flex-direction: column; align-items: stretch; }
     .btn { justify-content: center; }
-    #livePanel { display: none !important; }
   }
 </style>
 </head>
@@ -290,10 +278,6 @@
 
 </div>
 
-<div id="livePanel">
-  <div class="live-head"><span class="live-dot"></span>LIVE CLASS UPDATES</div>
-  <div id="liveContent" style="font-size:0.77rem;color:var(--text-dim);line-height:1.6;"></div>
-</div>
 
 <script>
   const micBtn = document.getElementById("micBtn");
@@ -390,13 +374,10 @@
 
   function connectWS() {
     const ws = new WebSocket(`${location.protocol==="https:"?"wss":"ws"}://${location.host}/ws`);
-    const livePanel=document.getElementById("livePanel"), liveContent=document.getElementById("liveContent");
     ws.onmessage = (e) => {
       try {
         const msg=JSON.parse(e.data);
-        livePanel.classList.add("visible");
-        if (msg.event==="summary") { liveContent.innerHTML=marked.parse(msg.data.replace(/\[URGENT\]/gi,'<span class="urgent">[URGENT]</span>')); }
-        else if (msg.event==="quiz") { try{const q=JSON.parse(msg.data);if(q.questions){renderQuiz(q.questions);setStatus("live quiz received","ok");}}catch{} }
+        if (msg.event==="quiz") { try{const q=JSON.parse(msg.data);if(q.questions){renderQuiz(q.questions);setStatus("live quiz received","ok");}}catch{} }
       } catch {}
     };
     ws.onclose = () => setTimeout(connectWS,5000);
