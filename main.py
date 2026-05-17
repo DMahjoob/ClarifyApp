@@ -67,37 +67,33 @@ class QuizRequest(BaseModel):
 # Precompute slide embeddings
 @app.on_event("startup")
 async def prepare_slide_embeddings():
+    loop = asyncio.get_event_loop()
+    loop.run_in_executor(None, load_embeddings_sync)
+
+def load_embeddings_sync():
     df = pd.read_json("data/CS356_data.jsonl", lines=True)
     app.state.slides_df = df
 
     EMBEDDING_CACHE = "slide_embeddings.npy"
-
-    # If cache exists -> load it
     if os.path.exists(EMBEDDING_CACHE):
-        print("⚡ Loading cached slide embeddings...")
+        print("Loading cached embeddings...")
         app.state.slide_embeddings = np.load(EMBEDDING_CACHE)
-        print("Embeddings loaded from cache")
         return
 
-    # Otherwise generate once
-    print("Generating slide embeddings (first run only)...")
+    print("Generating embeddings...")
     slide_texts = (
-        df["title"] + " " +
-        df["summary"] + " " +
-        df["summary"] + " " + # extra weight to summary
-        df["summary"] + " " + # extra weight to summary
+        df["title"] + " " + df["summary"] + " " +
+        df["summary"] + " " + df["summary"] + " " +
         df["main_text"] + " " +
         df["keywords"].apply(lambda kws: " ".join(kws) if isinstance(kws, list) else "") + " " +
         df["deck_name"] + " " +
-        df["slide_number"].astype(str) + " "
+        df["slide_number"].astype(str)
     ).tolist()
 
     embeddings = model.encode(slide_texts, normalize_embeddings=True)
-
-    # Save embeddings to disk
     np.save(EMBEDDING_CACHE, embeddings)
     app.state.slide_embeddings = embeddings
-    print("✅ Embeddings generated and cached to slide_embeddings.npy")
+    print("Embeddings ready.")
 
 # Health check endpoint
 @app.get("/health")
