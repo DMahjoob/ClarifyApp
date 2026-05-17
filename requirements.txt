@@ -5,7 +5,7 @@ pandas
 numpy
 nltk
 sentence-transformers
-torch
+torch --index-url https://download.pytorch.org/whl/cpu
 scikit-learn
 tqdm
 websockets
