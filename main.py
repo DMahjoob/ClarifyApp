@@ -14,6 +14,8 @@ from nltk.corpus import stopwords
 from sentence_transformers import SentenceTransformer
 import numpy as np
 import json
+import psycopg2
+from psycopg2.extras import RealDictCursor
 
 # Import context, can replace with any class context
 from cs356_context import SYSTEM_PROMPT
@@ -28,6 +30,10 @@ app.add_middleware(
     allow_methods=["*"],
     allow_headers=["*"],
 )
+
+# Connect to Supabase
+def get_db():
+    return psycopg2.connect(os.getenv("DB_URL"))
 
 # Mount static files
 app.mount("/static", StaticFiles(directory="static"), name="static")
@@ -105,7 +111,12 @@ async def health():
 @app.post("/api/ask")
 async def ask_question(q: Question):
     print(f"New question from {q.user}: {q.text}")
-    questions.append(q.dict())
+    with get_db() as conn:
+        with conn.cursor() as cur:
+            cur.execute(
+                "INSERT INTO questions (username, text) VALUES (%s, %s)",
+                (q.user, q.text)
+            )
 
     # Broadcast question for professor view
     disconnected = []
@@ -425,8 +436,15 @@ async def summarize_questions():
 
     # Build question list
     question_text = ""
-    for q in questions[-5:]:
-        question_text += f"- [{q['user']}] {q['text']}\n"
+    with get_db() as conn:
+        with conn.cursor(cursor_factory=RealDictCursor) as cur:
+            cur.execute("SELECT user_name, text FROM questions ORDER BY timestamp DESC LIMIT 5")
+            recent = cur.fetchall()
+
+    question_text = ""
+    for q in recent:
+        question_text += f"- [{q['username']}] {q['text']}\n"
+
 
     try:        
         response = groq_client.chat.completions.create(
