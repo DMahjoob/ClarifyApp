@@ -10,3 +10,4 @@ scikit-learn
 tqdm
 websockets
 groq
+psycopg2-binary
