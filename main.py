@@ -114,7 +114,7 @@ async def ask_question(q: Question):
     with get_db() as conn:
         with conn.cursor() as cur:
             cur.execute(
-                "INSERT INTO questions (username, text) VALUES (%s, %s)",
+                "INSERT INTO QuestionBank (username, text) VALUES (%s, %s)",
                 (q.user, q.text)
             )
 
@@ -438,7 +438,7 @@ async def summarize_questions():
     question_text = ""
     with get_db() as conn:
         with conn.cursor(cursor_factory=RealDictCursor) as cur:
-            cur.execute("SELECT user_name, text FROM questions ORDER BY timestamp DESC LIMIT 5")
+            cur.execute("SELECT username, text FROM QuestionBank ORDER BY timestamp DESC LIMIT 5")
             recent = cur.fetchall()
 
     question_text = ""
