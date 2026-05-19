@@ -31,14 +31,14 @@ app.add_middleware(
     allow_headers=["*"],
 )
 
+load_dotenv()
+
 # Connect to Supabase
 def get_db():
     return psycopg2.connect(os.getenv("DB_URL"))
 
 # Mount static files
 app.mount("/static", StaticFiles(directory="static"), name="static")
-
-load_dotenv()
 
 PROF_PASSWORD = os.getenv("PROF_PASSWORD")
 model = SentenceTransformer("all-MiniLM-L6-v2")
@@ -115,7 +115,7 @@ async def ask_question(q: Question):
     with get_db() as conn:
         with conn.cursor() as cur:
             cur.execute(
-                "INSERT INTO QuestionBank (username, text) VALUES (%s, %s)",
+                'INSERT INTO "QuestionBank" (username, text) VALUES (%s, %s)',
                 (q.user, q.text)
             )
 
@@ -416,8 +416,12 @@ async def websocket_endpoint(ws: WebSocket):
     
     try:
         # Send existing questions
-        for q in questions:
-            await ws.send_json({"event": "new_question", "data": q})
+        with get_db() as conn:
+            with conn.cursor(cursor_factory=RealDictCursor) as cur:
+                cur.execute('SELECT username, text FROM "QuestionBank" ORDER BY timestamp ASC')
+                past = cur.fetchall()
+        for q in past:
+            await ws.send_json({"event": "new_question", "data": {"user": q["username"], "text": q["text"]}})
         
         while True:
             await asyncio.sleep(1)
@@ -432,14 +436,14 @@ async def websocket_endpoint(ws: WebSocket):
 # ========== Summarization ==========
 async def summarize_questions():
     """Summarize questions with the imported context"""
-    if not groq_client or not questions:
+    if not groq_client:
         return None
 
     # Build question list
     question_text = ""
     with get_db() as conn:
         with conn.cursor(cursor_factory=RealDictCursor) as cur:
-            cur.execute("SELECT username, text FROM QuestionBank ORDER BY timestamp DESC LIMIT 5")
+            cur.execute('SELECT username, text FROM "QuestionBank" ORDER BY timestamp DESC LIMIT 5')
             recent = cur.fetchall()
 
     question_text = ""
@@ -545,7 +549,16 @@ async def start_summarizer():
 
             # Check if there have been more than 3 questions and also if the number of current 
             # questions is less than we summarized
-            if len(questions) > last_summarized_count and len(questions) >= 3:
+            try:
+                with get_db() as conn:
+                    with conn.cursor() as cur:
+                        cur.execute('SELECT COUNT(*) FROM "QuestionBank"')
+                        total = cur.fetchone()[0]
+            except Exception as e:
+                print(f"DB error in summarizer: {e}")
+                continue
+
+            if total > last_summarized_count and total >= 3:
                 summary = await summarize_questions()
                 if summary:
                     disconnected = []
@@ -568,7 +581,7 @@ async def start_summarizer():
                         if client in clients:
                             clients.remove(client)
                     
-                    last_summarized_count = len(questions)
+                    last_summarized_count = total
                     print(f"Summary sent. Tracking {last_summarized_count} questions.")
     
     asyncio.create_task(loop())
@@ -618,6 +631,11 @@ async def do_login(request: Request):
             <p style="color:red">Incorrect password</p>
         </form></body></html>
     """)
+
+# Favicon
+@app.get("/favicon.ico")
+async def favicon():
+    return FileResponse("static/favicon.ico")
 
 # ========== Run Server ==========
 if __name__ == "__main__":
