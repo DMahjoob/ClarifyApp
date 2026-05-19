@@ -1,8 +1,8 @@
 import os
 import asyncio
-from fastapi import FastAPI, WebSocket, WebSocketDisconnect
+from fastapi import FastAPI, WebSocket, WebSocketDisconnect, Request
 from fastapi.middleware.cors import CORSMiddleware
-from fastapi.responses import FileResponse
+from fastapi.responses import FileResponse, HTMLResponse, RedirectResponse
 from fastapi.staticfiles import StaticFiles
 from pydantic import BaseModel
 from dotenv import load_dotenv
@@ -40,6 +40,7 @@ app.mount("/static", StaticFiles(directory="static"), name="static")
 
 load_dotenv()
 
+PROF_PASSWORD = os.getenv("PROF_PASSWORD")
 model = SentenceTransformer("all-MiniLM-L6-v2")
 
 nltk.download('stopwords')
@@ -584,9 +585,39 @@ async def serve_student():
     return FileResponse("static/index.html")
 
 @app.get("/professor.html")
-async def serve_professor():
-    """Serve professor dashboard"""
+async def serve_professor(request: Request):
+    token = request.cookies.get("prof_auth")
+    if token != PROF_PASSWORD:
+        return RedirectResponse(url="/login")
     return FileResponse("static/professor.html")
+
+@app.get("/login")
+async def login_page():
+    return HTMLResponse("""
+        <html><body style="font-family:sans-serif;display:flex;justify-content:center;margin-top:100px">
+        <form method="post" action="/login">
+            <h2>Professor Login</h2>
+            <input type="password" name="password" placeholder="Enter password" style="padding:8px;margin-right:8px"/>
+            <button type="submit" style="padding:8px">Login</button>
+        </form></body></html>
+    """)
+
+@app.post("/login")
+async def do_login(request: Request):
+    form = await request.form()
+    if form.get("password") == PROF_PASSWORD:
+        response = RedirectResponse(url="/professor.html", status_code=303)
+        response.set_cookie("prof_auth", PROF_PASSWORD, httponly=True)
+        return response
+    return HTMLResponse("""
+        <html><body style="font-family:sans-serif;display:flex;justify-content:center;margin-top:100px">
+        <form method="post" action="/login">
+            <h2>Professor Login</h2>
+            <input type="password" name="password" placeholder="Enter password" style="padding:8px;margin-right:8px"/>
+            <button type="submit" style="padding:8px">Login</button>
+            <p style="color:red">Incorrect password</p>
+        </form></body></html>
+    """)
 
 # ========== Run Server ==========
 if __name__ == "__main__":
