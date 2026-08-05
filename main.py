@@ -1,4 +1,12 @@
 import os
+import sys
+
+# Python 3.13 + NLTK: NLTK's inisec.py blocks importing regex from CWD.
+# Temporarily remove CWD from sys.path so regex loads from site-packages.
+_cwd_entries = [p for p in sys.path if p in ("", os.getcwd())]
+for p in _cwd_entries:
+    sys.path.remove(p)
+
 import asyncio
 from fastapi import FastAPI, WebSocket, WebSocketDisconnect, Request
 from fastapi.middleware.cors import CORSMiddleware
@@ -16,6 +24,10 @@ import numpy as np
 import json
 import psycopg2
 from psycopg2.extras import RealDictCursor
+
+# Restore CWD to sys.path so local module imports work
+for p in _cwd_entries:
+    sys.path.insert(0, p)
 
 # Import context for each supported class
 from cs356_context import SYSTEM_PROMPT as CS356_PROMPT
