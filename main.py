@@ -19,7 +19,8 @@ import pandas as pd
 import re
 # import nltk
 # from nltk.corpus import stopwords
-from sentence_transformers import SentenceTransformer
+# SentenceTransformer is lazy-loaded on first query to speed up startup
+# from sentence_transformers import SentenceTransformer
 import numpy as np
 import json
 import psycopg2
@@ -77,7 +78,18 @@ def get_db():
 app.mount("/static", StaticFiles(directory="static"), name="static")
 
 PROF_PASSWORD = os.getenv("PROF_PASSWORD")
-model = SentenceTransformer("all-MiniLM-L6-v2")
+
+# Lazy-load SentenceTransformer on first query to avoid slow startup / OOM on Render
+_embedding_model = None
+
+def get_embedding_model():
+    global _embedding_model
+    if _embedding_model is None:
+        print("Loading SentenceTransformer model (first query)...")
+        from sentence_transformers import SentenceTransformer
+        _embedding_model = SentenceTransformer("all-MiniLM-L6-v2")
+        print("SentenceTransformer model loaded.")
+    return _embedding_model
 
 # nltk.download('stopwords')
 # STOPWORDS = set(stopwords.words('english'))
@@ -141,7 +153,7 @@ def load_embeddings_for_class(class_id: str, config: dict):
         df["slide_number"].astype(str)
     ).tolist()
 
-    embeddings = model.encode(slide_texts, normalize_embeddings=True)
+    embeddings = get_embedding_model().encode(slide_texts, normalize_embeddings=True)
     np.save(cache_file, embeddings)
     return df, embeddings
 
@@ -316,7 +328,7 @@ def recommend_slide_and_answer(query: str, class_id: str):
     processed_query = clean_text(query)
 
     # Embed student question
-    query_embedding = model.encode(
+    query_embedding = get_embedding_model().encode(
         [processed_query],
         normalize_embeddings=True
     )[0]
@@ -410,7 +422,7 @@ def generate_quiz_from_question(query: str, difficulty: str, question_types: lis
     system_prompt = CLASS_REGISTRY[class_id]["system_prompt"]
 
     processed_query = clean_text(query)
-    query_embedding = model.encode([processed_query], normalize_embeddings=True)[0]
+    query_embedding = get_embedding_model().encode([processed_query], normalize_embeddings=True)[0]
 
     similarities = np.dot(slide_embeddings, query_embedding)
     top_indices = np.argsort(similarities)[-5:][::-1]
