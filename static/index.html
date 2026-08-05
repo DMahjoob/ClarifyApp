@@ -66,6 +66,20 @@
     margin-bottom: 1.25rem;
   }
 
+  .class-row {
+    display: flex; align-items: center; gap: 10px;
+    padding-bottom: 1rem; margin-bottom: 1rem;
+    border-bottom: 1px solid var(--border);
+  }
+
+  .class-select {
+    flex: 1; font-family: var(--mono); font-size: 0.85rem;
+    background: transparent; border: 1px solid var(--border);
+    color: var(--text); padding: 7px 10px; border-radius: 4px;
+    outline: none; cursor: pointer; transition: border-color 0.15s;
+  }
+  .class-select:focus { border-color: var(--accent); }
+
   .name-row {
     display: flex; align-items: center; gap: 10px;
     padding-bottom: 1rem; margin-bottom: 1rem;
@@ -215,6 +229,12 @@
 
   <form id="questionForm">
     <div class="form-card">
+      <div class="class-row">
+        <span class="name-label">CLASS:</span>
+        <select id="classSelect" class="class-select" required>
+          <option value="" disabled selected>loading classes...</option>
+        </select>
+      </div>
       <div class="name-row">
         <span class="name-label">NAME (optional): </span>
         <input type="text" id="user" class="name-input" required autocomplete="off">
@@ -290,8 +310,27 @@
   const aiAnswerText = document.getElementById("aiAnswerText");
   const quizContainer = document.getElementById("quizContainer");
   const quizContent = document.getElementById("quizContent");
+  const classSelect = document.getElementById("classSelect");
 
   function setStatus(msg, type='') { statusEl.textContent = '> ' + msg; statusEl.className = 'status ' + type; }
+
+  // Load available classes on page load
+  (async () => {
+    try {
+      const res = await fetch("/api/classes");
+      const classes = await res.json();
+      classSelect.innerHTML = "";
+      classes.forEach((c, i) => {
+        const opt = document.createElement("option");
+        opt.value = c.id;
+        opt.textContent = c.name;
+        if (i === 0) opt.selected = true;
+        classSelect.appendChild(opt);
+      });
+    } catch (e) {
+      classSelect.innerHTML = '<option value="" disabled selected>failed to load classes</option>';
+    }
+  })();
 
   const SR = window.SpeechRecognition || window.webkitSpeechRecognition;
   let recognition = null, isListening = false;
@@ -340,11 +379,12 @@
 
   document.getElementById("questionForm").addEventListener("submit", async (e) => {
     e.preventDefault();
-    const user=document.getElementById("user").value, text=textArea.value;
+    const user=document.getElementById("user").value, text=textArea.value, class_id=classSelect.value;
+    if (!class_id) { setStatus("select a class first","pending"); return; }
     aiAnswerDiv.classList.remove("visible"); recommendationsDiv.classList.remove("visible"); quizContainer.classList.remove("visible");
     setStatus("thinking…","pending");
     try {
-      const res = await fetch("/api/ask",{method:"POST",headers:{"Content-Type":"application/json"},body:JSON.stringify({user,text})});
+      const res = await fetch("/api/ask",{method:"POST",headers:{"Content-Type":"application/json"},body:JSON.stringify({user,text,class_id})});
       const data = await res.json();
       if (res.ok) {
         setStatus("answer ready","ok");
@@ -360,12 +400,13 @@
   });
 
   document.getElementById("generateQuizBtn").addEventListener("click", async () => {
-    const user=document.getElementById("user").value, text=textArea.value, difficulty=document.getElementById("difficulty").value;
+    const user=document.getElementById("user").value, text=textArea.value, difficulty=document.getElementById("difficulty").value, class_id=classSelect.value;
+    if (!class_id) { setStatus("select a class first","pending"); return; }
     if (!difficulty) { setStatus("select a difficulty first","pending"); return; }
     recommendationsDiv.classList.remove("visible"); quizContainer.classList.remove("visible"); aiAnswerDiv.classList.remove("visible");
     setStatus("generating quiz…","pending");
     try {
-      const res = await fetch("/api/generate-quiz",{method:"POST",headers:{"Content-Type":"application/json"},body:JSON.stringify({user,text,difficulty})});
+      const res = await fetch("/api/generate-quiz",{method:"POST",headers:{"Content-Type":"application/json"},body:JSON.stringify({user,text,difficulty,class_id})});
       const data = await res.json();
       if (res.ok) { setStatus("quiz ready","ok"); renderQuiz(data.questions); }
       else { setStatus("quiz generation failed","err"); }

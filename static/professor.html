@@ -126,6 +126,7 @@
 
   .q-meta { display: flex; align-items: center; gap: 8px; margin-bottom: 2px; }
   .q-name { font-size: 0.7rem; font-weight: 700; color: var(--accent); letter-spacing: 0.05em; }
+  .q-class { font-size: 0.6rem; font-weight: 700; color: var(--green); background: rgba(42,122,75,0.1); border-radius: 3px; padding: 1px 6px; letter-spacing: 0.04em; }
   .q-time { font-size: 0.62rem; color: var(--text-muted); }
   .q-text { font-size: 0.8rem; color: var(--text-dim); line-height: 1.5; }
 
@@ -313,7 +314,8 @@
     const initials = (data.user||"?").split(" ").map(w=>w[0]).join("").slice(0,2).toUpperCase();
     const time = new Date().toLocaleTimeString([],{hour:"2-digit",minute:"2-digit"});
     const item = document.createElement("div"); item.className = "q-item";
-    item.innerHTML = `<div class="q-avatar">${initials}</div><div><div class="q-meta"><span class="q-name">${escHtml(data.user||"Student")}</span><span class="q-time">${time}</span></div><div class="q-text">${escHtml(data.text||"")}</div></div>`;
+    const classLabel = data.class_id ? data.class_id.toUpperCase() : "";
+    item.innerHTML = `<div class="q-avatar">${initials}</div><div><div class="q-meta"><span class="q-name">${escHtml(data.user||"Student")}</span>${classLabel ? `<span class="q-class">${escHtml(classLabel)}</span>` : ""}<span class="q-time">${time}</span></div><div class="q-text">${escHtml(data.text||"")}</div></div>`;
     body.appendChild(item);
     body.scrollTop = body.scrollHeight;
   }

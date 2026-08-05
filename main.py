@@ -17,8 +17,32 @@ import json
 import psycopg2
 from psycopg2.extras import RealDictCursor
 
-# Import context, can replace with any class context
-from cs356_context import SYSTEM_PROMPT
+# Import context for each supported class
+from cs356_context import SYSTEM_PROMPT as CS356_PROMPT
+from cs102_context import SYSTEM_PROMPT as CS102_PROMPT
+from cs103_context import SYSTEM_PROMPT as CS103_PROMPT
+
+# Class registry: maps class_id -> display name, data file, system prompt
+CLASS_REGISTRY = {
+    "cs356": {
+        "name": "CS356 - Computer Systems",
+        "data_file": "data/CS356_data.jsonl",
+        "system_prompt": CS356_PROMPT,
+        "embedding_cache": "slide_embeddings_cs356.npy",
+    },
+    "cs102": {
+        "name": "CS102 - Intro to Programming",
+        "data_file": "data/CS102_data.jsonl",
+        "system_prompt": CS102_PROMPT,
+        "embedding_cache": "slide_embeddings_cs102.npy",
+    },
+    "cs103": {
+        "name": "CS103 - Intro to Programming in C++",
+        "data_file": "data/CS103_data.jsonl",
+        "system_prompt": CS103_PROMPT,
+        "embedding_cache": "slide_embeddings_cs103.npy",
+    },
+}
 
 # ========== Setup ==========
 app = FastAPI()
@@ -60,34 +84,41 @@ clients: list[WebSocket] = []
 class Question(BaseModel):
     text: str
     user: str = ""
+    class_id: str = "cs356"
 
 class QuizRequest(BaseModel):
     user: str = ""
     text: str
     difficulty: str  # "easy", "medium", "hard"
     question_types: list[str] = ["mcq", "true_false", "short_answer"]
+    class_id: str = "cs356"
 
 
 # ========== API Endpoints ==========
 # Render needs to check that the connection is valid
 
-# Precompute slide embeddings
+# Precompute slide embeddings for all registered classes
 @app.on_event("startup")
 async def prepare_slide_embeddings():
     loop = asyncio.get_event_loop()
-    loop.run_in_executor(None, load_embeddings_sync)
+    loop.run_in_executor(None, load_all_embeddings_sync)
 
-def load_embeddings_sync():
-    df = pd.read_json("data/CS356_data.jsonl", lines=True)
-    app.state.slides_df = df
+def load_embeddings_for_class(class_id: str, config: dict):
+    data_file = config["data_file"]
+    cache_file = config["embedding_cache"]
 
-    EMBEDDING_CACHE = "slide_embeddings.npy"
-    if os.path.exists(EMBEDDING_CACHE):
-        print("Loading cached embeddings...")
-        app.state.slide_embeddings = np.load(EMBEDDING_CACHE)
-        return
+    if not os.path.exists(data_file):
+        print(f"Data file not found for {class_id}: {data_file}, skipping.")
+        return None, None
 
-    print("Generating embeddings...")
+    df = pd.read_json(data_file, lines=True)
+
+    if os.path.exists(cache_file):
+        print(f"Loading cached embeddings for {class_id}...")
+        embeddings = np.load(cache_file)
+        return df, embeddings
+
+    print(f"Generating embeddings for {class_id}...")
     slide_texts = (
         df["title"] + " " + df["summary"] + " " +
         df["summary"] + " " + df["summary"] + " " +
@@ -98,9 +129,31 @@ def load_embeddings_sync():
     ).tolist()
 
     embeddings = model.encode(slide_texts, normalize_embeddings=True)
-    np.save(EMBEDDING_CACHE, embeddings)
-    app.state.slide_embeddings = embeddings
-    print("Embeddings ready.")
+    np.save(cache_file, embeddings)
+    return df, embeddings
+
+def load_all_embeddings_sync():
+    app.state.class_data = {}
+    for class_id, config in CLASS_REGISTRY.items():
+        df, embeddings = load_embeddings_for_class(class_id, config)
+        if df is not None:
+            app.state.class_data[class_id] = {
+                "slides_df": df,
+                "slide_embeddings": embeddings,
+            }
+            print(f"Embeddings ready for {class_id} ({len(df)} slides).")
+        else:
+            print(f"Skipped {class_id} (no data).")
+    print(f"Loaded {len(app.state.class_data)} class(es).")
+
+# List available classes
+@app.get("/api/classes")
+async def list_classes():
+    return [
+        {"id": cid, "name": cfg["name"]}
+        for cid, cfg in CLASS_REGISTRY.items()
+        if cid in app.state.class_data
+    ]
 
 # Health check endpoint
 @app.get("/health")
@@ -115,8 +168,8 @@ async def ask_question(q: Question):
     with get_db() as conn:
         with conn.cursor() as cur:
             cur.execute(
-                'INSERT INTO "QuestionBank" (username, text) VALUES (%s, %s)',
-                (q.user, q.text)
+                'INSERT INTO "QuestionBank" (username, text, class_id) VALUES (%s, %s, %s)',
+                (q.user, q.text, q.class_id)
             )
 
     # Broadcast question for professor view
@@ -134,10 +187,15 @@ async def ask_question(q: Question):
 
     print(f"📊 Total: {len(questions)} questions, {len(clients)} clients")
 
+    if q.class_id not in app.state.class_data:
+        return {"status": "error", "detail": f"Class '{q.class_id}' not found"}
+
     # Generate recommendation & summary only for this user
     # Run in executor to avoid blocking the event loop (which blocks the summarizer + websockets)
     loop = asyncio.get_event_loop()
-    recommendation, response = await loop.run_in_executor(None, recommend_slide_and_answer, q.text)
+    recommendation, response = await loop.run_in_executor(
+        None, recommend_slide_and_answer, q.text, q.class_id
+    )
 
     return {
         "status": "received",
@@ -157,9 +215,12 @@ async def generate_quiz(req: QuizRequest):
                 "detail": "Invalid difficulty"
             }
 
+        if req.class_id not in app.state.class_data:
+            return {"status": "error", "detail": f"Class '{req.class_id}' not found"}
+
         loop = asyncio.get_event_loop()
         raw_quiz = await loop.run_in_executor(
-            None, generate_quiz_from_question, req.text, req.difficulty, req.question_types
+            None, generate_quiz_from_question, req.text, req.difficulty, req.question_types, req.class_id
         )
 
         try:
@@ -226,16 +287,17 @@ def clean_text(text: str) -> str:
 import numpy as np
 
 # Recommend slide and produce answer
-def recommend_slide_and_answer(query: str):
+def recommend_slide_and_answer(query: str, class_id: str):
     """
-    RAG-powered CS356 TA assistant.
-    - Retrieves relevant slides
-    - Answers question if within CS356 scope
-    - Refuses off-topic questions
+    RAG-powered TA assistant.
+    - Retrieves relevant slides for the given class
+    - Answers question using class-specific context
     """
 
-    df = app.state.slides_df
-    slide_embeddings = app.state.slide_embeddings
+    class_data = app.state.class_data[class_id]
+    df = class_data["slides_df"]
+    slide_embeddings = class_data["slide_embeddings"]
+    system_prompt = CLASS_REGISTRY[class_id]["system_prompt"]
 
     # ========== Preprocess Question ==========
     processed_query = clean_text(query)
@@ -303,7 +365,7 @@ def recommend_slide_and_answer(query: str):
         response_rag = groq_client.chat.completions.create(
             model="llama-3.1-8b-instant",
             messages=[
-                {"role": "system", "content": SYSTEM_PROMPT},
+                {"role": "system", "content": system_prompt},
                 {"role": "user", "content": prompt}
             ],
             max_tokens=600,
@@ -311,7 +373,7 @@ def recommend_slide_and_answer(query: str):
         )
 
         answer = response_rag.choices[0].message.content.strip()
-        print("✅ RAG answer generated")
+        print(f"RAG answer generated for {class_id}")
 
     except Exception as e:
         print(f"❌ Groq error: {e}")
@@ -321,7 +383,7 @@ def recommend_slide_and_answer(query: str):
     return recommendations, answer
 
 # Generate quiz from user input
-def generate_quiz_from_question(query: str, difficulty: str, question_types: list[str] = None):
+def generate_quiz_from_question(query: str, difficulty: str, question_types: list[str] = None, class_id: str = "cs356"):
     """
     Generate a quiz from a single student question/topic.
     Difficulty controls depth and subtlety.
@@ -329,8 +391,10 @@ def generate_quiz_from_question(query: str, difficulty: str, question_types: lis
     if question_types is None:
         question_types = ["mcq", "true_false", "short_answer"]
 
-    df = app.state.slides_df
-    slide_embeddings = app.state.slide_embeddings
+    class_data = app.state.class_data[class_id]
+    df = class_data["slides_df"]
+    slide_embeddings = class_data["slide_embeddings"]
+    system_prompt = CLASS_REGISTRY[class_id]["system_prompt"]
 
     processed_query = clean_text(query)
     query_embedding = model.encode([processed_query], normalize_embeddings=True)[0]
@@ -373,8 +437,9 @@ def generate_quiz_from_question(query: str, difficulty: str, question_types: lis
     generate_section = "\n    ".join(generate_lines)
     json_format = "{\n    " + ",\n    ".join(json_parts) + "\n    }"
 
+    class_name = CLASS_REGISTRY[class_id]["name"]
     quiz_prompt = f"""
-    You are a CS356 teaching assistant.
+    You are a {class_name} teaching assistant.
 
     Generate a quiz based ONLY on the provided slide content.
 
@@ -398,7 +463,7 @@ def generate_quiz_from_question(query: str, difficulty: str, question_types: lis
     response = groq_client.chat.completions.create(
         model="llama-3.1-8b-instant",
         messages=[
-            {"role": "system", "content": SYSTEM_PROMPT},
+            {"role": "system", "content": system_prompt},
             {"role": "user", "content": quiz_prompt}
         ],
         max_tokens=900,
@@ -418,10 +483,10 @@ async def websocket_endpoint(ws: WebSocket):
         # Send existing questions
         with get_db() as conn:
             with conn.cursor(cursor_factory=RealDictCursor) as cur:
-                cur.execute('SELECT username, text FROM "QuestionBank" ORDER BY timestamp ASC')
+                cur.execute('SELECT username, text, class_id FROM "QuestionBank" ORDER BY timestamp ASC')
                 past = cur.fetchall()
         for q in past:
-            await ws.send_json({"event": "new_question", "data": {"user": q["username"], "text": q["text"]}})
+            await ws.send_json({"event": "new_question", "data": {"user": q["username"], "text": q["text"], "class_id": q.get("class_id", "")}})
         
         while True:
             await asyncio.sleep(1)
@@ -451,11 +516,14 @@ async def summarize_questions():
         question_text += f"- [{q['username']}] {q['text']}\n"
 
 
-    try:        
+    # Use the first available class prompt as default for summarization
+    default_prompt = next(iter(CLASS_REGISTRY.values()))["system_prompt"]
+
+    try:
         response = groq_client.chat.completions.create(
-            model="llama-3.1-8b-instant", # can be replaced with any model, llama instant is fast
+            model="llama-3.1-8b-instant",
             messages=[
-                {"role": "system", "content": SYSTEM_PROMPT}, # imported from the context file
+                {"role": "system", "content": default_prompt},
                 {"role": "user", "content": f"Summarize these student questions:\n\n{question_text}"}
             ],
             max_tokens=600,
