@@ -488,13 +488,13 @@
     try {
       const res = await fetch("/api/generate-quiz",{method:"POST",headers:{"Content-Type":"application/json"},body:JSON.stringify({user,text,difficulty,class_id})});
       const data = await res.json();
-      if (res.ok) {
+      if (res.ok && data.questions?.length) {
         setStatus("quiz ready","ok");
         currentQuizTopic = data.topic || text;
         currentQuizClassId = data.class_id || class_id;
         renderQuiz(data.questions);
       }
-      else { setStatus("quiz generation failed","err"); }
+      else { setStatus(data.detail || "quiz generation failed","err"); }
     } catch(err) { setStatus("network error: "+err.message,"err"); }
   });
 
