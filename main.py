@@ -461,14 +461,13 @@ def recommend_slide_and_answer(query: str, class_id: str):
     # ========== Groq LLM Call ==========
     try:
         response_rag = groq_client.chat.completions.create(
-            model="qwen/qwen3.6-27b",
+            model="openai/gpt-oss-20b",
             messages=[
                 {"role": "system", "content": system_prompt},
                 {"role": "user", "content": prompt}
             ],
             max_tokens=600,
             temperature=0.3,
-            extra_body={"think": False}
         )
 
         answer = response_rag.choices[0].message.content.strip()
@@ -560,7 +559,7 @@ def generate_quiz_from_question(query: str, difficulty: str, question_types: lis
     """
 
     response = groq_client.chat.completions.create(
-        model="qwen/qwen3.6-27b",
+        model="openai/gpt-oss-20b",
         messages=[
             {"role": "system", "content": system_prompt},
             {"role": "user", "content": quiz_prompt}
@@ -621,14 +620,13 @@ async def summarize_questions():
 
     try:
         response = groq_client.chat.completions.create(
-            model="qwen/qwen3.6-27b",
+            model="openai/gpt-oss-20b",
             messages=[
                 {"role": "system", "content": default_prompt},
                 {"role": "user", "content": f"Summarize these student questions:\n\n{question_text}"}
             ],
             max_tokens=600,
             temperature=0.3,
-            extra_body={"think": False}
         )
         
         summary = response.choices[0].message.content
@@ -687,14 +685,13 @@ Summary:
 
     try:
         response = groq_client.chat.completions.create(
-            model="qwen/qwen3.6-27b",
+            model="openai/gpt-oss-20b",
             messages=[
                 {"role": "system", "content": "You generate quizzes only from provided content."},
                 {"role": "user", "content": quiz_prompt}
             ],
             max_tokens=800,
             temperature=0.4,
-            extra_body={"think": False}
         )
 
         quiz_json = response.choices[0].message.content
