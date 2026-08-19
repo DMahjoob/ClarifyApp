@@ -157,6 +157,28 @@
   .quiz-opt-key { font-size: 0.64rem; color: var(--accent); font-weight: 700; flex-shrink: 0; margin-top: 1px; min-width: 18px; }
   .quiz-ans { font-size: 0.7rem; color: var(--green); padding-top: 8px; border-top: 1px solid var(--border); letter-spacing: 0.05em; }
 
+  /* ── QUIZ STATS ── */
+  .stats-filter { display: flex; align-items: center; gap: 8px; margin-bottom: 0.75rem; }
+  .stats-filter label { font-size: 0.64rem; color: var(--text-muted); letter-spacing: 0.08em; }
+  .stats-filter select {
+    font-family: var(--mono); font-size: 0.72rem; background: var(--surface2);
+    border: 1px solid var(--border); color: var(--text); padding: 5px 8px;
+    border-radius: 3px; outline: none; cursor: pointer;
+  }
+  .topic-row {
+    display: flex; align-items: center; justify-content: space-between;
+    padding: 0.65rem 0; border-bottom: 1px solid var(--border);
+    animation: slide-in 0.3s ease both;
+  }
+  .topic-row:last-child { border-bottom: none; }
+  .topic-name { font-size: 0.78rem; font-weight: 700; color: var(--text); flex: 1; }
+  .topic-class { font-size: 0.6rem; font-weight: 700; color: var(--green); background: rgba(42,122,75,0.1); border-radius: 3px; padding: 1px 6px; margin-right: 10px; letter-spacing: 0.04em; }
+  .topic-pct { font-size: 0.82rem; font-weight: 700; min-width: 48px; text-align: right; }
+  .topic-pct.high { color: var(--green); }
+  .topic-pct.mid { color: #b07020; }
+  .topic-pct.low { color: var(--accent); }
+  .topic-detail { font-size: 0.64rem; color: var(--text-muted); margin-left: 10px; min-width: 80px; text-align: right; }
+
   /* ── EMPTY STATE ── */
   .empty { display: flex; flex-direction: column; align-items: center; justify-content: center; min-height: 120px; color: var(--text-muted); text-align: center; gap: 8px; }
   .empty .material-symbols-outlined { font-size: 24px; opacity: 0.3; }
@@ -252,6 +274,31 @@
         <div class="empty" id="quizEmpty">
           <span class="material-symbols-outlined">edit_note</span>
           <p>quizzes auto-generate from class summaries.</p>
+        </div>
+      </div>
+    </div>
+
+    <!-- QUIZ PERFORMANCE -->
+    <div class="panel full">
+      <div class="panel-head">
+        <div class="panel-head-title"><span class="material-symbols-outlined">leaderboard</span>STUDENT QUIZ PERFORMANCE</div>
+        <span class="panel-badge">last 7 days</span>
+      </div>
+      <div class="panel-body" id="quizStatsBody">
+        <div class="stats-filter">
+          <label>CLASS:</label>
+          <select id="statsClassFilter">
+            <option value="">All Classes</option>
+            <option value="cs356">CS356</option>
+            <option value="cs102">CS102</option>
+            <option value="cs103">CS103</option>
+          </select>
+        </div>
+        <div id="quizStatsContent">
+          <div class="empty" id="statsEmpty">
+            <span class="material-symbols-outlined">bar_chart</span>
+            <p>no quiz results yet.</p>
+          </div>
         </div>
       </div>
     </div>
@@ -378,6 +425,43 @@
     document.getElementById("statQz").textContent = qzCount;
     body.scrollTop = body.scrollHeight;
   }
+
+  // ── Quiz Performance Stats ──
+  async function loadQuizStats(classId) {
+    const url = classId ? `/api/quiz-stats?class_id=${classId}` : "/api/quiz-stats";
+    try {
+      const res = await fetch(url);
+      const data = await res.json();
+      const container = document.getElementById("quizStatsContent");
+      if (!data.stats?.length) {
+        container.innerHTML = '<div class="empty"><span class="material-symbols-outlined">bar_chart</span><p>no quiz results yet.</p></div>';
+        return;
+      }
+      container.innerHTML = "";
+      data.stats.forEach(row => {
+        const pct = Number(row.pct);
+        const pctClass = pct >= 70 ? "high" : pct >= 40 ? "mid" : "low";
+        const div = document.createElement("div");
+        div.className = "topic-row";
+        div.innerHTML = `
+          <span class="topic-class">${escHtml(row.class_id.toUpperCase())}</span>
+          <span class="topic-name">${escHtml(row.topic)}</span>
+          <span class="topic-detail">${row.correct}/${row.total} correct</span>
+          <span class="topic-pct ${pctClass}">${pct}%</span>
+        `;
+        container.appendChild(div);
+      });
+    } catch (e) {
+      console.error("Failed to load quiz stats:", e);
+    }
+  }
+
+  document.getElementById("statsClassFilter").addEventListener("change", (e) => {
+    loadQuizStats(e.target.value);
+  });
+
+  loadQuizStats("");
+  setInterval(() => loadQuizStats(document.getElementById("statsClassFilter").value), 30000);
 </script>
 </body>
 </html>

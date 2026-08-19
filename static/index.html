@@ -197,8 +197,22 @@
   .quiz-opt { display: flex; gap: 8px; font-size: 0.77rem; color: var(--text-dim); padding: 3px 0; }
   .quiz-opt-letter { color: var(--accent); font-weight: 700; min-width: 18px; flex-shrink: 0; }
   .quiz-ans { margin-top: 8px; padding-top: 8px; border-top: 1px solid var(--border); font-size: 0.71rem; color: #2a7a4b; letter-spacing: 0.05em; display: none; }
-  .quiz-reveal { font-family: var(--mono); font-size: 0.68rem; margin-top: 8px; padding: 5px 12px; background: transparent; color: var(--text-muted); border: 1px solid var(--border); border-radius: 3px; cursor: pointer; letter-spacing: 0.05em; transition: border-color 0.15s, color 0.15s; }
-  .quiz-reveal:hover { border-color: var(--accent); color: var(--accent); }
+
+  .quiz-opt-btn {
+    display: flex; gap: 8px; align-items: flex-start;
+    font-family: var(--mono); font-size: 0.77rem; color: var(--text-dim);
+    padding: 8px 12px; margin: 4px 0;
+    background: var(--surface2); border: 1px solid var(--border); border-radius: 4px;
+    cursor: pointer; transition: all 0.15s; width: 100%; text-align: left;
+  }
+  .quiz-opt-btn:hover:not(:disabled) { border-color: var(--accent); color: var(--accent); }
+  .quiz-opt-btn:disabled { cursor: default; opacity: 0.85; }
+  .quiz-opt-btn.correct { border-color: #2a7a4b; background: rgba(42,122,75,0.1); color: #2a7a4b; }
+  .quiz-opt-btn.incorrect { border-color: var(--accent); background: rgba(232,24,93,0.08); color: var(--accent); text-decoration: line-through; }
+  .quiz-opt-btn .quiz-opt-letter { color: inherit; font-weight: 700; min-width: 18px; flex-shrink: 0; }
+  .quiz-result-tag { font-size: 0.68rem; font-weight: 700; letter-spacing: 0.06em; margin-top: 6px; }
+  .quiz-result-tag.right { color: #2a7a4b; }
+  .quiz-result-tag.wrong { color: var(--accent); }
 
 
   ::-webkit-scrollbar { width: 4px; }
@@ -362,19 +376,85 @@
     recommendationsDiv.classList.add("visible");
   }
 
+  let currentQuizTopic = "";
+  let currentQuizClassId = "";
+
   function renderQuiz(questions) {
     quizContent.innerHTML = "";
     document.getElementById("quizCount").textContent = questions.length + " questions";
     const L = ["A","B","C","D","E"];
     questions.forEach((q,i) => {
-      const opts = q.options?.length ? q.options.map((o,j)=>`<div class="quiz-opt"><span class="quiz-opt-letter">${L[j]})</span><span>${o.replace(/^[A-E]\.\s*/i,"")}</span></div>`).join("") : "";
       const div = document.createElement("div"); div.className="quiz-q";
+      let optsHtml = "";
+      if (q.options?.length) {
+        optsHtml = q.options.map((o,j) => {
+          const letter = L[j];
+          const cleanText = o.replace(/^[A-E]\.\s*/i,"");
+          return `<button type="button" class="quiz-opt-btn" data-qi="${i}" data-letter="${letter}" data-answer="${encodeURIComponent(q.answer)}">
+            <span class="quiz-opt-letter">${letter})</span><span>${cleanText}</span>
+          </button>`;
+        }).join("");
+      }
       const ansId = `quiz-ans-${i}`;
-      const ansBlock = q.answer ? `<div class="quiz-ans" id="${ansId}">>> answer: ${q.answer}</div><button type="button" class="quiz-reveal" onclick="const el=document.getElementById('${ansId}');if(el.style.display==='block'){el.style.display='none';this.textContent='show answer';}else{el.style.display='block';this.textContent='hide answer';}">show answer</button>` : "";
-      div.innerHTML = `<div class="quiz-num">QUESTION ${i+1}</div><div class="quiz-qtext">${q.question}</div>${opts}${ansBlock}`;
+      const ansBlock = q.answer ? `<div class="quiz-ans" id="${ansId}">>> answer: ${q.answer}</div>` : "";
+      const resultTag = `<div class="quiz-result-tag" id="quiz-result-${i}"></div>`;
+      div.innerHTML = `<div class="quiz-num">QUESTION ${i+1}</div><div class="quiz-qtext">${q.question}</div>${optsHtml}${ansBlock}${resultTag}`;
+
+      // Attach click handlers to option buttons
+      div.querySelectorAll(".quiz-opt-btn").forEach(btn => {
+        btn.addEventListener("click", () => handleQuizAnswer(btn, q, i));
+      });
+
       quizContent.appendChild(div);
     });
     quizContainer.classList.add("visible");
+  }
+
+  function handleQuizAnswer(btn, q, questionIndex) {
+    const parent = btn.closest(".quiz-q");
+    const allBtns = parent.querySelectorAll(".quiz-opt-btn");
+    const selectedLetter = btn.dataset.letter;
+    const correctAnswer = q.answer;
+
+    // Determine if correct (answer could be "A", "B", etc. or the full text)
+    const isCorrect = selectedLetter === correctAnswer
+      || btn.querySelector("span:last-child").textContent.trim() === correctAnswer;
+
+    // Disable all buttons
+    allBtns.forEach(b => {
+      b.disabled = true;
+      const bLetter = b.dataset.letter;
+      const bText = b.querySelector("span:last-child").textContent.trim();
+      const bIsCorrect = bLetter === correctAnswer || bText === correctAnswer;
+      if (bIsCorrect) b.classList.add("correct");
+    });
+
+    if (!isCorrect) btn.classList.add("incorrect");
+
+    // Show the answer line
+    const ansEl = parent.querySelector(".quiz-ans");
+    if (ansEl) ansEl.style.display = "block";
+
+    // Show result tag
+    const resultEl = document.getElementById(`quiz-result-${questionIndex}`);
+    if (resultEl) {
+      resultEl.className = "quiz-result-tag " + (isCorrect ? "right" : "wrong");
+      resultEl.textContent = isCorrect ? "CORRECT" : "INCORRECT";
+    }
+
+    // POST result to backend
+    fetch("/api/quiz-result", {
+      method: "POST",
+      headers: {"Content-Type": "application/json"},
+      body: JSON.stringify({
+        class_id: currentQuizClassId,
+        topic: currentQuizTopic,
+        question_text: q.question,
+        selected_answer: selectedLetter,
+        correct_answer: correctAnswer,
+        is_correct: isCorrect
+      })
+    }).catch(err => console.error("Failed to save quiz result:", err));
   }
 
   document.getElementById("questionForm").addEventListener("submit", async (e) => {
@@ -408,7 +488,12 @@
     try {
       const res = await fetch("/api/generate-quiz",{method:"POST",headers:{"Content-Type":"application/json"},body:JSON.stringify({user,text,difficulty,class_id})});
       const data = await res.json();
-      if (res.ok) { setStatus("quiz ready","ok"); renderQuiz(data.questions); }
+      if (res.ok) {
+        setStatus("quiz ready","ok");
+        currentQuizTopic = data.topic || text;
+        currentQuizClassId = data.class_id || class_id;
+        renderQuiz(data.questions);
+      }
       else { setStatus("quiz generation failed","err"); }
     } catch(err) { setStatus("network error: "+err.message,"err"); }
   });

@@ -118,11 +118,40 @@ class QuizRequest(BaseModel):
     question_types: list[str] = ["mcq", "true_false", "short_answer"]
     class_id: str = "cs356"
 
+class QuizResultSubmission(BaseModel):
+    class_id: str
+    topic: str
+    question_text: str
+    selected_answer: str
+    correct_answer: str
+    is_correct: bool
+
 
 # ========== API Endpoints ==========
 # Render needs to check that the connection is valid
 
 # Precompute slide embeddings for all registered classes
+@app.on_event("startup")
+async def ensure_quiz_results_table():
+    try:
+        with get_db() as conn:
+            with conn.cursor() as cur:
+                cur.execute("""
+                    CREATE TABLE IF NOT EXISTS "QuizResults" (
+                        id SERIAL PRIMARY KEY,
+                        class_id VARCHAR(20) NOT NULL,
+                        topic VARCHAR(500) NOT NULL,
+                        question_text TEXT NOT NULL,
+                        selected_answer TEXT NOT NULL,
+                        correct_answer TEXT NOT NULL,
+                        is_correct BOOLEAN NOT NULL,
+                        created_at TIMESTAMP DEFAULT NOW()
+                    )
+                """)
+        print("QuizResults table ready")
+    except Exception as e:
+        print(f"Could not create QuizResults table: {e}")
+
 @app.on_event("startup")
 async def prepare_slide_embeddings():
     loop = asyncio.get_event_loop()
@@ -287,7 +316,9 @@ async def generate_quiz(req: QuizRequest):
 
         return {
             "status": "success",
-            "questions": questions
+            "questions": questions,
+            "topic": req.text,
+            "class_id": req.class_id
         }
 
     except Exception as e:
@@ -298,6 +329,58 @@ async def generate_quiz(req: QuizRequest):
         }
 
 
+
+
+@app.post("/api/quiz-result")
+async def submit_quiz_result(result: QuizResultSubmission):
+    try:
+        with get_db() as conn:
+            with conn.cursor() as cur:
+                cur.execute(
+                    """INSERT INTO "QuizResults"
+                       (class_id, topic, question_text, selected_answer, correct_answer, is_correct)
+                       VALUES (%s, %s, %s, %s, %s, %s)""",
+                    (result.class_id, result.topic, result.question_text,
+                     result.selected_answer, result.correct_answer, result.is_correct)
+                )
+        return {"status": "recorded"}
+    except Exception as e:
+        print(f"Quiz result save error: {e}")
+        return {"status": "error", "detail": "Could not save quiz result"}
+
+
+@app.get("/api/quiz-stats")
+async def quiz_stats(class_id: str = None):
+    try:
+        with get_db() as conn:
+            with conn.cursor(cursor_factory=RealDictCursor) as cur:
+                if class_id:
+                    cur.execute("""
+                        SELECT class_id, topic,
+                               COUNT(*) AS total,
+                               SUM(CASE WHEN is_correct THEN 1 ELSE 0 END) AS correct,
+                               ROUND(100.0 * SUM(CASE WHEN is_correct THEN 1 ELSE 0 END) / COUNT(*)) AS pct
+                        FROM "QuizResults"
+                        WHERE class_id = %s AND created_at >= NOW() - INTERVAL '7 days'
+                        GROUP BY class_id, topic
+                        ORDER BY topic
+                    """, (class_id,))
+                else:
+                    cur.execute("""
+                        SELECT class_id, topic,
+                               COUNT(*) AS total,
+                               SUM(CASE WHEN is_correct THEN 1 ELSE 0 END) AS correct,
+                               ROUND(100.0 * SUM(CASE WHEN is_correct THEN 1 ELSE 0 END) / COUNT(*)) AS pct
+                        FROM "QuizResults"
+                        WHERE created_at >= NOW() - INTERVAL '7 days'
+                        GROUP BY class_id, topic
+                        ORDER BY class_id, topic
+                    """)
+                rows = cur.fetchall()
+        return {"stats": rows}
+    except Exception as e:
+        print(f"Quiz stats error: {e}")
+        return {"stats": []}
 
 
 # Text Cleaning Helper Function
@@ -388,7 +471,7 @@ def recommend_slide_and_answer(query: str, class_id: str):
     # ========== Groq LLM Call ==========
     try:
         response_rag = groq_client.chat.completions.create(
-            model="llama-3.1-8b-instant",
+            model="llama-3.3-70b-versatile",
             messages=[
                 {"role": "system", "content": system_prompt},
                 {"role": "user", "content": prompt}
@@ -486,7 +569,7 @@ def generate_quiz_from_question(query: str, difficulty: str, question_types: lis
     """
 
     response = groq_client.chat.completions.create(
-        model="llama-3.1-8b-instant",
+        model="llama-3.3-70b-versatile",
         messages=[
             {"role": "system", "content": system_prompt},
             {"role": "user", "content": quiz_prompt}
@@ -546,7 +629,7 @@ async def summarize_questions():
 
     try:
         response = groq_client.chat.completions.create(
-            model="llama-3.1-8b-instant",
+            model="llama-3.3-70b-versatile",
             messages=[
                 {"role": "system", "content": default_prompt},
                 {"role": "user", "content": f"Summarize these student questions:\n\n{question_text}"}
@@ -611,7 +694,7 @@ Summary:
 
     try:
         response = groq_client.chat.completions.create(
-            model="llama-3.1-8b-instant",
+            model="llama-3.3-70b-versatile",
             messages=[
                 {"role": "system", "content": "You generate quizzes only from provided content."},
                 {"role": "user", "content": quiz_prompt}
