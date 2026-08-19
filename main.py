@@ -467,7 +467,8 @@ def recommend_slide_and_answer(query: str, class_id: str):
                 {"role": "user", "content": prompt}
             ],
             max_tokens=600,
-            temperature=0.3
+            temperature=0.3,
+            extra_body={"think": False}
         )
 
         answer = response_rag.choices[0].message.content.strip()
@@ -565,7 +566,8 @@ def generate_quiz_from_question(query: str, difficulty: str, question_types: lis
             {"role": "user", "content": quiz_prompt}
         ],
         max_tokens=900,
-        temperature=0.4
+        temperature=0.4,
+        extra_body={"think": False}
     )
 
     return response.choices[0].message.content
@@ -625,7 +627,8 @@ async def summarize_questions():
                 {"role": "user", "content": f"Summarize these student questions:\n\n{question_text}"}
             ],
             max_tokens=600,
-            temperature=0.3
+            temperature=0.3,
+            extra_body={"think": False}
         )
         
         summary = response.choices[0].message.content
@@ -690,7 +693,8 @@ Summary:
                 {"role": "user", "content": quiz_prompt}
             ],
             max_tokens=800,
-            temperature=0.4 # slight creativity for quiz variety
+            temperature=0.4,
+            extra_body={"think": False}
         )
 
         quiz_json = response.choices[0].message.content
