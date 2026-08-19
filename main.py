@@ -471,7 +471,7 @@ def recommend_slide_and_answer(query: str, class_id: str):
     # ========== Groq LLM Call ==========
     try:
         response_rag = groq_client.chat.completions.create(
-            model="llama-3.3-70b-versatile",
+            model="qwen/qwen3.6-27b",
             messages=[
                 {"role": "system", "content": system_prompt},
                 {"role": "user", "content": prompt}
@@ -569,7 +569,7 @@ def generate_quiz_from_question(query: str, difficulty: str, question_types: lis
     """
 
     response = groq_client.chat.completions.create(
-        model="llama-3.3-70b-versatile",
+        model="qwen/qwen3.6-27b",
         messages=[
             {"role": "system", "content": system_prompt},
             {"role": "user", "content": quiz_prompt}
@@ -629,7 +629,7 @@ async def summarize_questions():
 
     try:
         response = groq_client.chat.completions.create(
-            model="llama-3.3-70b-versatile",
+            model="qwen/qwen3.6-27b",
             messages=[
                 {"role": "system", "content": default_prompt},
                 {"role": "user", "content": f"Summarize these student questions:\n\n{question_text}"}
@@ -694,7 +694,7 @@ Summary:
 
     try:
         response = groq_client.chat.completions.create(
-            model="llama-3.3-70b-versatile",
+            model="qwen/qwen3.6-27b",
             messages=[
                 {"role": "system", "content": "You generate quizzes only from provided content."},
                 {"role": "user", "content": quiz_prompt}
