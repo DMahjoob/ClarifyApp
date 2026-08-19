@@ -565,8 +565,7 @@ def generate_quiz_from_question(query: str, difficulty: str, question_types: lis
             {"role": "user", "content": quiz_prompt}
         ],
         max_tokens=900,
-        temperature=0.4,
-        extra_body={"think": False}
+        temperature=0.4
     )
 
     return response.choices[0].message.content
