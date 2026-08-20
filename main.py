@@ -149,6 +149,10 @@ async def ensure_quiz_results_table():
                         created_at TIMESTAMP DEFAULT NOW()
                     )
                 """)
+                cur.execute("""
+                    CREATE UNIQUE INDEX IF NOT EXISTS "uq_quiz_result"
+                    ON "QuizResults" (class_id, topic, question_text)
+                """)
         print("QuizResults table ready")
     except Exception as e:
         print(f"Could not create QuizResults table: {e}")
@@ -354,7 +358,8 @@ async def submit_quiz_result(result: QuizResultSubmission):
                 cur.execute(
                     """INSERT INTO "QuizResults"
                        (class_id, topic, question_text, selected_answer, correct_answer, is_correct)
-                       VALUES (%s, %s, %s, %s, %s, %s)""",
+                       VALUES (%s, %s, %s, %s, %s, %s)
+                       ON CONFLICT (class_id, topic, question_text) DO NOTHING""",
                     (result.class_id, result.topic, result.question_text,
                      result.selected_answer, result.correct_answer, result.is_correct)
                 )

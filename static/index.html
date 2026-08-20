@@ -379,10 +379,46 @@
   let currentQuizTopic = "";
   let currentQuizClassId = "";
 
+  function getStorageKey() {
+    return `quiz_answers_${currentQuizClassId}_${currentQuizTopic}`;
+  }
+
+  function getSavedAnswers() {
+    try { return JSON.parse(localStorage.getItem(getStorageKey())) || {}; }
+    catch { return {}; }
+  }
+
+  function saveAnswer(questionIndex, selectedLetter, isCorrect) {
+    const saved = getSavedAnswers();
+    saved[questionIndex] = { selectedLetter, isCorrect };
+    localStorage.setItem(getStorageKey(), JSON.stringify(saved));
+  }
+
+  function applyAnsweredState(div, q, questionIndex, selectedLetter, isCorrect) {
+    const allBtns = div.querySelectorAll(".quiz-opt-btn");
+    const correctAnswer = q.answer;
+    allBtns.forEach(b => {
+      b.disabled = true;
+      const bLetter = b.dataset.letter;
+      const bText = b.querySelector("span:last-child").textContent.trim();
+      const bIsCorrect = bLetter === correctAnswer || bText === correctAnswer;
+      if (bIsCorrect) b.classList.add("correct");
+      if (bLetter === selectedLetter && !isCorrect) b.classList.add("incorrect");
+    });
+    const ansEl = div.querySelector(".quiz-ans");
+    if (ansEl) ansEl.style.display = "block";
+    const resultEl = document.getElementById(`quiz-result-${questionIndex}`);
+    if (resultEl) {
+      resultEl.className = "quiz-result-tag " + (isCorrect ? "right" : "wrong");
+      resultEl.textContent = isCorrect ? "CORRECT" : "INCORRECT";
+    }
+  }
+
   function renderQuiz(questions) {
     quizContent.innerHTML = "";
     document.getElementById("quizCount").textContent = questions.length + " questions";
     const L = ["A","B","C","D","E"];
+    const saved = getSavedAnswers();
     questions.forEach((q,i) => {
       const div = document.createElement("div"); div.className="quiz-q";
       let optsHtml = "";
@@ -400,10 +436,14 @@
       const resultTag = `<div class="quiz-result-tag" id="quiz-result-${i}"></div>`;
       div.innerHTML = `<div class="quiz-num">QUESTION ${i+1}</div><div class="quiz-qtext">${q.question}</div>${optsHtml}${ansBlock}${resultTag}`;
 
-      // Attach click handlers to option buttons
-      div.querySelectorAll(".quiz-opt-btn").forEach(btn => {
-        btn.addEventListener("click", () => handleQuizAnswer(btn, q, i));
-      });
+      // If already answered, restore that state; otherwise attach click handlers
+      if (saved[i]) {
+        applyAnsweredState(div, q, i, saved[i].selectedLetter, saved[i].isCorrect);
+      } else {
+        div.querySelectorAll(".quiz-opt-btn").forEach(btn => {
+          btn.addEventListener("click", () => handleQuizAnswer(btn, q, i));
+        });
+      }
 
       quizContent.appendChild(div);
     });
@@ -412,35 +452,14 @@
 
   function handleQuizAnswer(btn, q, questionIndex) {
     const parent = btn.closest(".quiz-q");
-    const allBtns = parent.querySelectorAll(".quiz-opt-btn");
     const selectedLetter = btn.dataset.letter;
     const correctAnswer = q.answer;
 
-    // Determine if correct (answer could be "A", "B", etc. or the full text)
     const isCorrect = selectedLetter === correctAnswer
       || btn.querySelector("span:last-child").textContent.trim() === correctAnswer;
 
-    // Disable all buttons
-    allBtns.forEach(b => {
-      b.disabled = true;
-      const bLetter = b.dataset.letter;
-      const bText = b.querySelector("span:last-child").textContent.trim();
-      const bIsCorrect = bLetter === correctAnswer || bText === correctAnswer;
-      if (bIsCorrect) b.classList.add("correct");
-    });
-
-    if (!isCorrect) btn.classList.add("incorrect");
-
-    // Show the answer line
-    const ansEl = parent.querySelector(".quiz-ans");
-    if (ansEl) ansEl.style.display = "block";
-
-    // Show result tag
-    const resultEl = document.getElementById(`quiz-result-${questionIndex}`);
-    if (resultEl) {
-      resultEl.className = "quiz-result-tag " + (isCorrect ? "right" : "wrong");
-      resultEl.textContent = isCorrect ? "CORRECT" : "INCORRECT";
-    }
+    applyAnsweredState(parent, q, questionIndex, selectedLetter, isCorrect);
+    saveAnswer(questionIndex, selectedLetter, isCorrect);
 
     // POST result to backend
     fetch("/api/quiz-result", {
