@@ -127,6 +127,17 @@ async def ensure_quiz_results_table():
         with get_db() as conn:
             with conn.cursor() as cur:
                 cur.execute("""
+                    CREATE TABLE IF NOT EXISTS "GeneratedQuizzes" (
+                        id SERIAL PRIMARY KEY,
+                        class_id VARCHAR(20) NOT NULL,
+                        topic VARCHAR(500) NOT NULL,
+                        difficulty VARCHAR(10) NOT NULL,
+                        questions JSONB NOT NULL,
+                        username VARCHAR(200) DEFAULT '',
+                        created_at TIMESTAMP DEFAULT NOW()
+                    )
+                """)
+                cur.execute("""
                     CREATE TABLE IF NOT EXISTS "QuizResults" (
                         id SERIAL PRIMARY KEY,
                         class_id VARCHAR(20) NOT NULL,
@@ -303,6 +314,20 @@ async def generate_quiz(req: QuizRequest):
                 "question": sa["question"],
                 "answer": sa["answer"]
             })
+
+        # Save generated quiz to database
+        try:
+            with get_db() as conn:
+                with conn.cursor() as cur:
+                    cur.execute(
+                        """INSERT INTO "GeneratedQuizzes"
+                           (class_id, topic, difficulty, questions, username)
+                           VALUES (%s, %s, %s, %s, %s)""",
+                        (req.class_id, req.text, req.difficulty,
+                         json.dumps(questions), req.user)
+                    )
+        except Exception as db_err:
+            print(f"Failed to save quiz to DB: {db_err}")
 
         return {
             "status": "success",
