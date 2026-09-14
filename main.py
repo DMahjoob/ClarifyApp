@@ -154,52 +154,54 @@ async def ensure_quiz_results_table():
     except Exception as e:
         print(f"Could not create QuizResults table: {e}")
 
-# @app.on_event("startup")
-# async def prepare_slide_embeddings():
-#     loop = asyncio.get_event_loop()
-#     loop.run_in_executor(None, load_all_embeddings_sync)
+@app.on_event("startup")
+async def load_classes_on_startup():
+    load_all_embeddings_sync()
 
-# def load_embeddings_for_class(class_id: str, config: dict):
-#     data_file = config["data_file"]
-#     cache_file = config["embedding_cache"]
+def load_embeddings_for_class(class_id: str, config: dict):
+    data_file = config["data_file"]
+    cache_file = config["embedding_cache"]
 
-#     if not os.path.exists(data_file):
-#         print(f"Data file not found for {class_id}: {data_file}, skipping.")
-#         return None, None
+    if not os.path.exists(data_file):
+        print(f"Data file not found for {class_id}: {data_file}")
+        return None, None
 
-#     df = pd.read_json(data_file, lines=True)
+    if not os.path.exists(cache_file):
+        print(f"Embedding cache not found for {class_id}: {cache_file}")
+        return None, None
 
-#     if os.path.exists(cache_file):
-#         print(f"Loading cached embeddings for {class_id}...")
-#         embeddings = np.load(cache_file)
-#         return df, embeddings
+    print(f"Loading {class_id} data...")
 
-#     print(f"Generating embeddings for {class_id}...")
-#     slide_texts = (
-#         df["title"] + " " + df["summary"] + " " +
-#         df["summary"] + " " + df["summary"] + " " +
-#         df["main_text"] + " " +
-#         df["keywords"].apply(lambda kws: " ".join(kws) if isinstance(kws, list) else "") + " " +
-#         df["deck_name"] + " " +
-#         df["slide_number"].astype(str)
-#     ).tolist()
+    # Load JSONL without pandas
+    slides = []
+    with open(data_file, "r", encoding="utf-8") as f:
+        for line in f:
+            line = line.strip()
+            if line:
+                slides.append(json.loads(line))
 
-#     embeddings = embedding_model.encode(slide_texts, normalize_embeddings=True)
-#     np.save(cache_file, embeddings)
-#     return df, embeddings
+    # Load precomputed embeddings
+    embeddings = np.load(cache_file)
+
+    print(f"Loaded {class_id}: {len(slides)} slides")
+
+    return slides, embeddings
 
 def load_all_embeddings_sync():
     app.state.class_data = {}
+
     for class_id, config in CLASS_REGISTRY.items():
-        df, embeddings = load_embeddings_for_class(class_id, config)
-        if df is not None:
+        slides, embeddings = load_embeddings_for_class(class_id, config)
+
+        if slides is not None:
             app.state.class_data[class_id] = {
-                "slides_df": df,
+                "slides": slides,
                 "slide_embeddings": embeddings,
             }
-            print(f"Embeddings ready for {class_id} ({len(df)} slides).")
+            print(f"Embeddings ready for {class_id} ({len(slides)} slides).")
         else:
-            print(f"Skipped {class_id} (no data).")
+            print(f"Skipped {class_id}.")
+
     print(f"Loaded {len(app.state.class_data)} class(es).")
 
 # List available classes
@@ -408,9 +410,6 @@ def clean_text(text: str) -> str:
     tokens = [t for t in tokens if t not in STOPWORDS]
     return " ".join(tokens)
 
-
-import numpy as np
-
 # Recommend slide and produce answer
 def recommend_slide_and_answer(query: str, class_id: str):
     """
@@ -420,7 +419,7 @@ def recommend_slide_and_answer(query: str, class_id: str):
     """
 
     class_data = app.state.class_data[class_id]
-    df = class_data["slides_df"]
+    slides = class_data["slides"]
     slide_embeddings = class_data["slide_embeddings"]
     system_prompt = CLASS_REGISTRY[class_id]["system_prompt"]
 
@@ -444,7 +443,7 @@ def recommend_slide_and_answer(query: str, class_id: str):
 
 
     for i in top_indices:
-        slide = df.iloc[i]
+        slide = slides[i]
         rec = {
             "deck_name": slide["deck_name"],
             "slide_number": int(slide["slide_number"]),
@@ -517,7 +516,7 @@ def generate_quiz_from_question(query: str, difficulty: str, question_types: lis
         question_types = ["mcq", "true_false", "short_answer"]
 
     class_data = app.state.class_data[class_id]
-    df = class_data["slides_df"]
+    slides = class_data["slides"]
     slide_embeddings = class_data["slide_embeddings"]
     system_prompt = CLASS_REGISTRY[class_id]["system_prompt"]
 
@@ -529,7 +528,7 @@ def generate_quiz_from_question(query: str, difficulty: str, question_types: lis
 
     retrieved_slides = ""
     for i in top_indices:
-        slide = df.iloc[i]
+        slide = slides[i]
         retrieved_slides += f"""
         Deck: {slide['deck_name']}
         Slide: {slide['slide_number']}
