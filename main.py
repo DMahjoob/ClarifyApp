@@ -15,10 +15,7 @@ from fastapi.staticfiles import StaticFiles
 from pydantic import BaseModel
 from dotenv import load_dotenv
 from groq import Groq
-import pandas as pd
 import re
-# import nltk
-# from nltk.corpus import stopwords
 from sentence_transformers import SentenceTransformer
 import numpy as np
 import json
@@ -157,39 +154,39 @@ async def ensure_quiz_results_table():
     except Exception as e:
         print(f"Could not create QuizResults table: {e}")
 
-@app.on_event("startup")
-async def prepare_slide_embeddings():
-    loop = asyncio.get_event_loop()
-    loop.run_in_executor(None, load_all_embeddings_sync)
+# @app.on_event("startup")
+# async def prepare_slide_embeddings():
+#     loop = asyncio.get_event_loop()
+#     loop.run_in_executor(None, load_all_embeddings_sync)
 
-def load_embeddings_for_class(class_id: str, config: dict):
-    data_file = config["data_file"]
-    cache_file = config["embedding_cache"]
+# def load_embeddings_for_class(class_id: str, config: dict):
+#     data_file = config["data_file"]
+#     cache_file = config["embedding_cache"]
 
-    if not os.path.exists(data_file):
-        print(f"Data file not found for {class_id}: {data_file}, skipping.")
-        return None, None
+#     if not os.path.exists(data_file):
+#         print(f"Data file not found for {class_id}: {data_file}, skipping.")
+#         return None, None
 
-    df = pd.read_json(data_file, lines=True)
+#     df = pd.read_json(data_file, lines=True)
 
-    if os.path.exists(cache_file):
-        print(f"Loading cached embeddings for {class_id}...")
-        embeddings = np.load(cache_file)
-        return df, embeddings
+#     if os.path.exists(cache_file):
+#         print(f"Loading cached embeddings for {class_id}...")
+#         embeddings = np.load(cache_file)
+#         return df, embeddings
 
-    print(f"Generating embeddings for {class_id}...")
-    slide_texts = (
-        df["title"] + " " + df["summary"] + " " +
-        df["summary"] + " " + df["summary"] + " " +
-        df["main_text"] + " " +
-        df["keywords"].apply(lambda kws: " ".join(kws) if isinstance(kws, list) else "") + " " +
-        df["deck_name"] + " " +
-        df["slide_number"].astype(str)
-    ).tolist()
+#     print(f"Generating embeddings for {class_id}...")
+#     slide_texts = (
+#         df["title"] + " " + df["summary"] + " " +
+#         df["summary"] + " " + df["summary"] + " " +
+#         df["main_text"] + " " +
+#         df["keywords"].apply(lambda kws: " ".join(kws) if isinstance(kws, list) else "") + " " +
+#         df["deck_name"] + " " +
+#         df["slide_number"].astype(str)
+#     ).tolist()
 
-    embeddings = embedding_model.encode(slide_texts, normalize_embeddings=True)
-    np.save(cache_file, embeddings)
-    return df, embeddings
+#     embeddings = embedding_model.encode(slide_texts, normalize_embeddings=True)
+#     np.save(cache_file, embeddings)
+#     return df, embeddings
 
 def load_all_embeddings_sync():
     app.state.class_data = {}
