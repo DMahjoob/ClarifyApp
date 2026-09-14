@@ -1,0 +1,23 @@
+{
+  "permissions": {
+    "allow": [
+      "Bash(echo $ANTHROPIC_API_KEY)",
+      "Read(//Users/ThePokecrafter/Downloads/**)",
+      "Bash(python3:*)",
+      "Bash(ls CS102_*.jsonl)",
+      "Bash(ls -la /Users/ThePokecrafter/Documents/PythonProjects/ClarifyApp/ClarifyApp/slide_embeddings*.npy)",
+      "Bash(pip install:*)",
+      "Bash(source activate:*)",
+      "Bash(conda activate:*)",
+      "Bash(/opt/miniconda3/envs/clarify/bin/pip install:*)",
+      "Bash(curl -s http://localhost:8000/health)",
+      "Bash(git commit:*)",
+      "Bash(git push:*)",
+      "Bash(git add:*)",
+      "Bash(ls:*)",
+      "Bash(curl -s -X POST http://localhost:8000/api/ask -H \"Content-Type: application/json\" -d '{\"\"\"\"text\"\"\"\":\"\"\"\"what is a pointer\"\"\"\",\"\"\"\"user\"\"\"\":\"\"\"\"test\"\"\"\",\"\"\"\"class_id\"\"\"\":\"\"\"\"cs103\"\"\"\"}')",
+      "Bash(source /Users/ThePokecrafter/Documents/PythonProjects/ClarifyApp/ClarifyApp/.env)",
+      "Bash(curl -s https://api.groq.com/openai/v1/models -H 'Authorization: Bearer $GROQ_API_KEY')"
+    ]
+  }
+}

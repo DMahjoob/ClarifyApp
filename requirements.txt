@@ -1,15 +1,10 @@
 fastapi
 uvicorn[standard]
 python-dotenv
-pandas
 numpy
-nltk
 regex
 sentence-transformers
 torch --index-url https://download.pytorch.org/whl/cpu
-scikit-learn
-tqdm
-websockets
 groq
 psycopg2-binary
 python-multipart

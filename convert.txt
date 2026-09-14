@@ -1,0 +1,121 @@
+INSTRUCTIONS FOR CONVERTING LECTURE PDFs TO JSONL DATASETS
+===========================================================
+
+This describes how to replicate the PDF-to-JSONL conversion process
+using Claude Code (not the pdf_to_slide_jsonl.py script, which uses
+the Anthropic API separately). This method uses Claude's built-in
+vision capabilities to read PDF pages directly.
+
+PREREQUISITES
+-------------
+- Claude Code with PDF reading capability (Read tool with pages parameter)
+- Write tool to create the output JSONL file
+- PDFs can be read max 20 pages at a time
+
+PROCESS
+-------
+1. Determine total page count of the PDF (use PyMuPDF: python3 -c "import fitz; print(len(fitz.open('file.pdf')))")
+2. Read the PDF in batches of 20 pages using the Read tool with the pages parameter
+3. For EACH page/slide, visually inspect the rendered image and create one JSON object
+4. Write all JSON objects to a .jsonl file (one per line)
+
+AGENT PROMPT (copy this exactly, replacing the placeholders)
+------------------------------------------------------------
+
+Process a lecture PDF into a JSONL dataset for a RAG system.
+
+PDF: <FULL_PATH_TO_PDF>
+Output: <FULL_PATH_TO_OUTPUT_JSONL>
+Pages: <TOTAL_PAGES> (read in batches of 20: 1-20, 21-40, etc.)
+
+For EACH page, create one JSON object per line:
+{"deck_name": "<DECK_NAME>", "slide_number": <int>, "chunk_index": 0, "title": "<clear title>", "summary": "<20-40 words>", "main_text": "<all educational content, 150-300 words typical, 500 max>", "notes_text": "<deeper context or empty string>", "keywords": ["5-12 terms"], "images": [{"description": "<what it teaches>", "labels": ["visible labels"], "position": {"x": 0-1, "y": 0-1, "width": 0-1, "height": 0-1}}], "layout": {"num_text_boxes": <int>, "num_images": <int>, "dominant_visual_type": "<text-heavy|diagram|flowchart|mixed|comparison>"}, "metadata": {"course": "<COURSE_CODE>", "unit": "<UNIT_ID>", "topic": "<topic>", "importance_score": 1-10, "file_hash": "sha256:PLACEHOLDER"}}
+
+Rules: No hallucination. Faithful transcription. Describe what diagrams teach. Exclude slide numbers/copyright/decorative headers. Always provide at least 5 keywords. Never leave notes_text empty for content slides. Use Read tool with pages parameter.
+
+PLACEHOLDERS TO FILL
+---------------------
+- <FULL_PATH_TO_PDF>: Absolute path to the source PDF
+- <FULL_PATH_TO_OUTPUT_JSONL>: Absolute path to the output .jsonl file in the data/ folder
+- <TOTAL_PAGES>: Number of pages in the PDF
+- <DECK_NAME>: Format as "<COURSE>_<UNIT>_<TopicName>" e.g. "CS103_Unit2a_PointersPassByRef"
+- <COURSE_CODE>: e.g. "CS102", "CS103", "CS356"
+- <UNIT_ID>: e.g. "0", "1a", "2b", "5c"
+
+NAMING CONVENTIONS
+------------------
+- deck_name: <CourseCode>_Unit<Number><Letter>_<TopicName>
+  Examples: CS102_Unit2c_Arrays, CS103_Unit5d_Inheritance, CS356_Unit11_VirtualMemory
+- Output file: data/<deck_name>.jsonl
+  Examples: data/CS103_Unit2a_PointersPassByRef.jsonl
+- Consolidated file: data/<CourseCode>_data.jsonl
+  Examples: data/CS102_data.jsonl, data/CS103_data.jsonl
+
+SCHEMA FIELD DETAILS
+--------------------
+deck_name       : String. Identifies the lecture deck. Same for all slides in one PDF.
+slide_number    : Integer. 1-based, sequential.
+chunk_index     : Integer. Always 0 unless a slide is so long it needs splitting.
+title           : String. Short, human-readable slide title (e.g. "Making Decisions").
+summary         : String. 1-2 sentences, 20-40 words describing the slide's purpose.
+main_text       : String. All meaningful visible educational content: bullets, code,
+                  table contents. 150-300 words typical, 500 max. Exclude slide numbers,
+                  decorative headers/footers, copyright boilerplate.
+notes_text      : String. Optional deeper context, connections to other slides, or
+                  caveats. Never empty for content slides.
+keywords        : Array of strings. 5-12 specific technical/topical terms per slide.
+images          : Array of objects. One entry per distinct diagram/figure/illustration.
+                  Empty array if the slide is pure text.
+  - description : What the diagram/figure TEACHES (not just what it looks like).
+  - labels      : Visible text labels inside the figure.
+  - position    : Normalized coordinates (0.0-1.0). x,y = top-left corner of figure.
+layout          : Object describing slide structure.
+  - num_text_boxes       : Rough count of distinct text blocks/bullet groups.
+  - num_images           : Count of entries in images array.
+  - dominant_visual_type : One of: text-heavy, diagram, flowchart, mixed, comparison.
+metadata        : Object with course-level info.
+  - course           : Course code string (e.g. "CS103").
+  - unit             : Unit identifier string (e.g. "2a", "5c").
+  - topic            : Main conceptual topic this slide belongs to.
+  - importance_score : Integer 1-10. How central the slide is to core learning
+                       objectives. Title/divider slides get 1-3, core content gets 7-10.
+  - file_hash        : Always "sha256:PLACEHOLDER".
+
+QUALITY RULES
+-------------
+1. Do NOT hallucinate content not visible on the slide.
+2. Keep main_text a faithful transcription/paraphrase of what's on the slide.
+3. For diagrams, describe WHAT they teach, not just what they look like.
+4. Position coordinates are normalized 0.0-1.0 estimates (0,0 = top-left).
+5. Always provide at least 5 keywords, even for section divider slides.
+6. Never leave notes_text empty for content slides (add pedagogical context).
+7. Exclude copyright notices, slide numbers, and decorative headers from content.
+8. Section divider slides should still get a brief parenthetical explanation in main_text.
+
+CONSOLIDATION
+-------------
+After all individual unit files are created, consolidate into one file per course:
+
+python3 -c "
+import os, json
+files = sorted([f for f in os.listdir('.') if f.startswith('<COURSE>_') and f.endswith('.jsonl') and f != '<COURSE>_data.jsonl'])
+total = 0
+with open('<COURSE>_data.jsonl', 'w') as out:
+    for f in files:
+        with open(f) as inp:
+            for line in inp:
+                line = line.strip()
+                if line:
+                    json.loads(line)  # validate
+                    out.write(line + '\n')
+                    total += 1
+print(f'Total: {total} entries')
+"
+
+PARALLELIZATION
+---------------
+For efficiency, launch multiple agents in parallel (one per PDF or batched
+for smaller PDFs). Each agent reads its assigned PDF independently and writes
+its own .jsonl file. No coordination needed between agents since each PDF
+produces a separate output file. After all agents complete, run the
+consolidation step above.
