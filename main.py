@@ -283,10 +283,11 @@ async def generate_quiz(req: QuizRequest):
 
         try:
             quiz_json = json.loads(raw_quiz)
-        except json.JSONDecodeError:
+        except json.JSONDecodeError as parse_err:
+            print(f"Quiz JSON parse failed ({parse_err}). Raw output: {raw_quiz!r}")
             return {
                 "status": "error",
-                "detail": "Failed to parse quiz JSON from LLM"
+                "detail": "We couldn't build a quiz for that topic. Try again, or narrow the topic a little."
             }
 
         # Flatten quiz into frontend-friendly format
@@ -590,8 +591,9 @@ def generate_quiz_from_question(query: str, difficulty: str, question_types: lis
             {"role": "system", "content": system_prompt},
             {"role": "user", "content": quiz_prompt}
         ],
-        max_tokens=900,
-        temperature=0.4
+        max_tokens=2500,
+        temperature=0.4,
+        response_format={"type": "json_object"}
     )
 
     return response.choices[0].message.content
